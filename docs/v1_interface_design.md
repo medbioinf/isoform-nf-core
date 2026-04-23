@@ -24,6 +24,7 @@ V1 should support:
 - optional input via SRA manifest
 - transcript-level quantification with Salmon
 - cohort-level isoform-switch analysis with `IsoformSwitchAnalyzeR`
+- presentable cohort-level outputs and summaries
 
 V1 should not include:
 
@@ -31,6 +32,20 @@ V1 should not include:
 - bundled GEO-specific manifests as defaults
 - hardcoded condition labels such as `normal` and `crc`
 - every optional external ISAR annotation tool from the vignette
+
+## Important scope clarification
+
+V1 is designed to analyze **annotated / reference isoforms**, not to discover genuinely novel isoforms de novo.
+
+That means:
+
+- the pipeline quantifies against a supplied reference transcriptome
+- the downstream ISAR step analyzes changes in usage of those reference transcripts
+
+So if someone asks whether the V1 pipeline detects "novel isoforms", the answer is:
+
+- not as a primary feature of this design
+- V1 is a reference-based isoform-switch pipeline
 
 ## Input modes
 
@@ -288,6 +303,14 @@ The pipeline should produce at least:
 - ISAR result tables
 - ISAR plots
 - pipeline execution metadata
+
+These outputs should be structured so they are not only technically correct, but also reasonably presentable for project reporting and discussion.
+
+In practice, that means V1 should make it easy to locate:
+
+- the main ranked switch candidates
+- the main cohort summary tables
+- the main QC summary
 
 ## Immediate implementation consequences
 
