@@ -13,7 +13,7 @@ It focuses on:
 
 The future production pipeline should implement one clean, generic workflow:
 
-`FASTQ or optional SRA manifest -> QC / trimming -> Salmon -> IsoformSwitchAnalyzeR -> MultiQC / reports`
+`FASTQ or SRA manifest -> QC / trimming -> Salmon -> IsoformSwitchAnalyzeR -> MultiQC / reports`
 
 The main design principle is:
 
@@ -22,7 +22,7 @@ The main design principle is:
 
 ## Top-level workflow design
 
-The top-level workflow should have one clear branching point at the input layer:
+The V1 workflow should have one clear branching point at the input layer:
 
 1. FASTQ samplesheet input
 2. SRA manifest input
@@ -84,6 +84,10 @@ This layer should emit:
 
 These modules should be reused from `nf-core` rather than reimplemented locally.
 
+`nf-core/rnaseq` should be treated as the main architecture reference for the standard RNA-seq parts of the workflow. It already demonstrates mature patterns for samplesheets, QC, trimming, Salmon quantification, MultiQC reporting, and test structure.
+
+The pipeline should not call the complete `nf-core/rnaseq` pipeline as a nested black box. That would make profiles, work directories, resume behavior, and output contracts harder to maintain. Reusing the underlying modules/subworkflows gives a cleaner one-command user experience.
+
 ### Already present in the scaffold
 
 - `fastqc`
@@ -95,7 +99,7 @@ These modules should be reused from `nf-core` rather than reimplemented locally.
 - `salmon/index`
 - `salmon/quant`
 
-### Candidate to evaluate, but not mandatory for v1
+### Candidate to evaluate for SRA mode
 
 - `sratools/prefetch`
 - `fastq-dl`
@@ -161,7 +165,9 @@ The following subworkflows should likely exist under `subworkflows/local/`.
 Responsibilities:
 
 - validate FASTQ samplesheet rows
-- normalize layout
+- infer single-end / paired-end layout from `fastq_2`
+- validate repeated sample rows for multiple sequencing runs
+- preserve `strandedness` metadata
 - create the internal sample representation
 - emit metadata CSV / channel for downstream use
 
@@ -172,6 +178,7 @@ Responsibilities:
 - validate SRA manifest rows
 - download / convert SRA data
 - normalize output reads
+- preserve `strandedness` metadata
 - emit the same internal sample representation as FASTQ mode
 
 ### `preprocess_reads`
@@ -212,13 +219,16 @@ Suggested `meta` fields:
 
 - `id`
 - `condition`
-- `layout`
+- `single_end`
+- `strandedness`
 - `patient_id`
 - `sra_run`
 
 Suggested metadata CSV shape:
 
 - one normalized cohort-level CSV with the minimal columns required by the ISAR step
+
+Repeated input rows with the same `sample` should be treated as multiple sequencing runs of the same biological sample. They must agree on condition, strandedness, optional patient ID, and read layout before being grouped.
 
 The important design rule is:
 

@@ -45,7 +45,8 @@ That means the testing plan should explicitly cover:
 
 - paired-end FASTQ mode
 - single-end FASTQ mode
-- optional SRA mode
+- repeated FASTQ rows for multiple sequencing runs of the same sample
+- SRA mode
 - the shared downstream path into Salmon
 - the optional ISAR analysis step
 
@@ -61,6 +62,7 @@ Required smoke tests:
 
 1. paired-end FASTQ smoke test
 2. single-end FASTQ smoke test
+3. repeated-run samplesheet validation test
 
 These tests should:
 
@@ -86,7 +88,7 @@ It only needs to prove:
 - outputs are created
 - snapshots are stable enough for CI
 
-### Layer 3: Optional SRA-mode smoke test
+### Layer 3: SRA-mode smoke test
 
 This should not be the first priority.
 
@@ -122,7 +124,7 @@ These should be the first two test profiles brought into shape.
 ### Later / optional
 
 - `test_sra`
-  - optional SRA input path if reproducible enough for automation
+  - SRA input path if reproducible enough for automation
 
 ## Synthetic test data requirements
 

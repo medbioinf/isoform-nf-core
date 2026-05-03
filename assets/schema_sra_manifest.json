@@ -1,8 +1,8 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://raw.githubusercontent.com/Anton-Bch/isoform-nf-core/main/assets/schema_input.json",
-    "title": "Anton-Bch/isoform-nf-core pipeline - params.input schema",
-    "description": "Schema for the file provided with params.input",
+    "$id": "https://raw.githubusercontent.com/Anton-Bch/isoform-nf-core/main/assets/schema_sra_manifest.json",
+    "title": "Anton-Bch/isoform-nf-core pipeline - params.sra_manifest schema",
+    "description": "Schema for the file provided with params.sra_manifest",
     "type": "array",
     "items": {
         "type": "object",
@@ -19,19 +19,11 @@
                 "errorMessage": "Condition must be provided and cannot be empty",
                 "meta": ["condition"]
             },
-            "fastq_1": {
+            "sra_run": {
                 "type": "string",
-                "format": "file-path",
-                "exists": true,
-                "pattern": "^([\\S\\s]*\\/)?[^\\s\\/]+\\.f(ast)?q\\.gz$",
-                "errorMessage": "FastQ file for reads 1 must be provided, cannot contain spaces and must have extension '.fq.gz' or '.fastq.gz'"
-            },
-            "fastq_2": {
-                "type": "string",
-                "format": "file-path",
-                "exists": true,
-                "pattern": "^([\\S\\s]*\\/)?[^\\s\\/]+\\.f(ast)?q\\.gz$",
-                "errorMessage": "FastQ file for reads 2 cannot contain spaces and must have extension '.fq.gz' or '.fastq.gz'"
+                "pattern": "^SRR[0-9]+$",
+                "errorMessage": "SRA run must be provided and should look like SRR1234567",
+                "meta": ["sra_run"]
             },
             "strandedness": {
                 "type": "string",
@@ -45,6 +37,6 @@
                 "meta": ["patient_id"]
             }
         },
-        "required": ["sample", "condition", "fastq_1", "strandedness"]
+        "required": ["sample", "condition", "sra_run", "strandedness"]
     }
 }

@@ -14,14 +14,14 @@ It is intended to be the contract that guides the first implementation steps:
 
 The first version of the pipeline should support the following analysis path:
 
-`FASTQ or optional SRA manifest -> QC / trimming -> Salmon -> IsoformSwitchAnalyzeR`
+`FASTQ or SRA manifest -> QC / trimming -> Salmon -> IsoformSwitchAnalyzeR`
 
 V1 should support:
 
 - paired-end RNA-seq
 - single-end RNA-seq
 - primary input via local FASTQ samplesheet
-- optional input via SRA manifest
+- public-data input via SRA manifest
 - transcript-level quantification with Salmon
 - cohort-level isoform-switch analysis with `IsoformSwitchAnalyzeR`
 - presentable cohort-level outputs and summaries
@@ -49,7 +49,7 @@ So if someone asks whether the V1 pipeline detects "novel isoforms", the answer 
 
 ## Input modes
 
-The pipeline should support exactly two top-level input modes.
+V1 should support two top-level input modes.
 
 ### Mode 1: FASTQ samplesheet
 
@@ -66,7 +66,7 @@ The samplesheet should describe the cohort and FASTQ locations directly.
 
 ### Mode 2: SRA manifest
 
-This should be an optional convenience mode for public datasets.
+This should be the V1 convenience mode for public datasets.
 
 User provides:
 
@@ -91,6 +91,11 @@ The pipeline should enforce:
 - reference files are always required in v1
 - the rest of the workflow should operate on one normalized internal sample representation
 
+Implementation note:
+
+- the interface and schema can define `--sra_manifest` before the workflow branch is implemented
+- until the branch exists, runtime validation should fail clearly when `--sra_manifest` is used
+
 ## FASTQ samplesheet design
 
 ### Required columns
@@ -98,45 +103,48 @@ The pipeline should enforce:
 - `sample`
 - `condition`
 - `fastq_1`
+- `strandedness`
 
 ### Optional columns
 
 - `fastq_2`
-- `layout`
 - `patient_id`
 
 ### Column meaning
 
 - `sample`
-  - unique sample identifier used throughout the pipeline
+  - sample identifier used throughout the pipeline
+  - may appear in multiple rows when one biological sample has multiple sequencing runs
 - `condition`
   - biological condition used for comparison in the ISAR step
 - `fastq_1`
   - path to the first FASTQ file, or the only FASTQ file for single-end data
 - `fastq_2`
   - path to the second FASTQ file for paired-end data
-- `layout`
-  - optional explicit layout, one of `single` or `paired`
+- `strandedness`
+  - library strandedness, one of `auto`, `forward`, `reverse`, or `unstranded`
+  - follows the nf-core style used by `nf-core/rnaseq`
 - `patient_id`
   - optional blocking / pairing variable for matched designs
 
 ### Validation rules
 
-- `sample` must be unique
+- repeated rows with the same `sample` are allowed for multiple sequencing runs
 - `condition` must be non-empty
 - `fastq_1` must always be present
-- if `layout == paired`, then `fastq_2` must be present
-- if `layout` is missing:
-  - infer `paired` when `fastq_2` is populated
-  - otherwise infer `single`
+- `strandedness` must be one of `auto`, `forward`, `reverse`, or `unstranded`
+- read layout is inferred from `fastq_2`
+- if `fastq_2` is populated, the row is paired-end
+- if `fastq_2` is empty, the row is single-end
+- all rows for the same `sample` must agree on `condition`, `strandedness`, `patient_id` when present, and inferred read layout
 
 ### Example FASTQ samplesheet
 
 ```csv
-sample,condition,fastq_1,fastq_2,layout,patient_id
-sample_normal_1,normal,/data/sample_normal_1_R1.fastq.gz,/data/sample_normal_1_R2.fastq.gz,paired,patient01
-sample_tumor_1,tumor,/data/sample_tumor_1_R1.fastq.gz,/data/sample_tumor_1_R2.fastq.gz,paired,patient01
-sample_crc_2,crc,/data/sample_crc_2.fastq.gz,,single,patient02
+sample,condition,fastq_1,fastq_2,strandedness,patient_id
+sample_normal_1,normal,/data/sample_normal_1_L001_R1.fastq.gz,/data/sample_normal_1_L001_R2.fastq.gz,auto,patient01
+sample_normal_1,normal,/data/sample_normal_1_L002_R1.fastq.gz,/data/sample_normal_1_L002_R2.fastq.gz,auto,patient01
+sample_tumor_1,tumor,/data/sample_tumor_1.fastq.gz,,auto,patient02
 ```
 
 ## SRA manifest design
@@ -146,39 +154,42 @@ sample_crc_2,crc,/data/sample_crc_2.fastq.gz,,single,patient02
 - `sample`
 - `condition`
 - `sra_run`
+- `strandedness`
 
 ### Optional columns
 
-- `layout`
 - `patient_id`
 
 ### Column meaning
 
 - `sample`
-  - unique sample identifier used throughout the pipeline
+  - sample identifier used throughout the pipeline
+  - may appear in multiple rows when one biological sample has multiple sequencing runs
 - `condition`
   - biological condition used for comparison in the ISAR step
 - `sra_run`
   - SRA run accession such as `SRR1234567`
-- `layout`
-  - optional explicit layout, one of `single` or `paired`
+- `strandedness`
+  - library strandedness, one of `auto`, `forward`, `reverse`, or `unstranded`
 - `patient_id`
   - optional blocking / pairing variable
 
 ### Validation rules
 
-- `sample` must be unique
+- repeated rows with the same `sample` are allowed for multiple SRA runs
 - `condition` must be non-empty
 - `sra_run` must be non-empty
-- if `layout` is supplied, it must be `single` or `paired`
-- if `layout` is missing, allow the downloader / conversion layer to determine the actual output shape
+- `strandedness` must be one of `auto`, `forward`, `reverse`, or `unstranded`
+- read layout is determined after SRA download / conversion
+- all rows for the same `sample` must agree on `condition`, `strandedness`, and `patient_id` when present
 
 ### Example SRA manifest
 
 ```csv
-sample,condition,sra_run,layout,patient_id
-patient32_normal,normal,SRR5275286,single,32
-patient32_crc,crc,SRR5275287,single,32
+sample,condition,sra_run,strandedness,patient_id
+patient32_normal,normal,SRR5275286,auto,32
+patient32_normal,normal,SRR5275287,auto,32
+patient32_crc,crc,SRR5275288,auto,32
 ```
 
 ## Reference inputs
@@ -232,18 +243,12 @@ These are the parameters that should likely appear in the first real schema revi
 - `salmon_quant_libtype`
   - default likely `A`
   - tells Salmon what library type to assume, or to auto-detect it
-- `salmon_fld_mean`
-  - relevant for single-end mode
-  - expected average fragment length for single-end data
-- `salmon_fld_sd`
-  - relevant for single-end mode
-  - expected fragment length spread for single-end data
-- `salmon_seq_bias`
-  - whether to enable sequence-specific bias correction
-- `salmon_gc_bias`
-  - whether to enable GC-bias correction
-- `salmon_pos_bias`
-  - whether to enable positional bias correction
+- `extra_salmon_index_args`
+  - optional free-text arguments appended to `salmon index`
+  - keeps the pipeline flexible without exposing every Salmon flag as a separate pipeline parameter
+- `extra_salmon_quant_args`
+  - optional free-text arguments appended to `salmon quant`
+  - useful for advanced Salmon options such as bias correction or single-end fragment length settings
 
 ### ISAR comparison options
 
@@ -267,6 +272,8 @@ These are the parameters that should likely appear in the first real schema revi
 - `download_threads`
   - number of threads to use for download and FASTQ conversion steps
 
+These options belong to the V1 SRA input mode.
+
 ### Reporting
 
 - `multiqc_title`
@@ -280,7 +287,8 @@ Suggested meta fields:
 
 - `id`
 - `condition`
-- `layout`
+- `single_end`
+- `strandedness`
 - `patient_id`
 - `sra_run`
 
@@ -318,6 +326,6 @@ Before porting large amounts of code, the next steps should be:
 
 1. update `nextflow.config` params in `isoform-nf-core`
 2. replace the template `input` schema with the proposed FASTQ samplesheet contract
-3. add a second schema entry for `sra_manifest`
+3. add schema support for `sra_manifest`
 4. define the internal sample metadata contract in the workflow code
 5. only then start porting reusable logic from the prototype repo

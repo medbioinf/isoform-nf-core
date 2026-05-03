@@ -1,5 +1,5 @@
 //
-// Subworkflow with functionality specific to the anton/isoform pipeline
+// Subworkflow with functionality specific to the Anton-Bch/isoform-nf-core pipeline
 //
 
 /*
@@ -54,7 +54,7 @@ workflow PIPELINE_INITIALISATION {
     //
     // Validate parameters and generate parameter summary to stdout
     //
-    command = "nextflow run ${workflow.manifest.name} -profile <docker/singularity/.../institute> --input samplesheet.csv --outdir <OUTDIR>"
+    command = "nextflow run ${workflow.manifest.name} -profile <docker/singularity/.../institute> --input samplesheet.csv --transcript_fasta transcripts.fa --genome_fasta genome.fa --gtf annotation.gtf --outdir <OUTDIR>"
 
     UTILS_NFSCHEMA_PLUGIN (
         workflow,
@@ -166,7 +166,19 @@ workflow PIPELINE_COMPLETION {
 // Check and validate pipeline parameters
 //
 def validateInputParameters() {
-    genomeExistsError()
+    if ((params.input && params.sra_manifest) || (!params.input && !params.sra_manifest)) {
+        error("Please provide exactly one of `--input` or `--sra_manifest`.")
+    }
+
+    ['transcript_fasta', 'genome_fasta', 'gtf'].each { key ->
+        if (!params[key]) {
+            error("Missing required parameter: `--${key}`")
+        }
+    }
+
+    if (params.sra_manifest) {
+        error("`--sra_manifest` is part of the V1 interface, but the SRA workflow branch is not implemented yet. Please use `--input` until the SRA branch is added.")
+    }
 }
 
 //
@@ -181,34 +193,23 @@ def validateInputSamplesheet(input) {
         error("Please check input samplesheet -> Multiple runs of a sample must be of the same datatype i.e. single-end or paired-end: ${metas[0].id}")
     }
 
+    def condition_ok = metas.collect { meta -> meta.condition }.unique().size == 1
+    if (!condition_ok) {
+        error("Please check input samplesheet -> Multiple runs of a sample must have the same condition: ${metas[0].id}")
+    }
+
+    def strandedness_ok = metas.collect { meta -> meta.strandedness }.unique().size == 1
+    if (!strandedness_ok) {
+        error("Please check input samplesheet -> Multiple runs of a sample must have the same strandedness: ${metas[0].id}")
+    }
+
+    def patient_id_ok = metas.collect { meta -> meta.patient_id ?: '' }.unique().size == 1
+    if (!patient_id_ok) {
+        error("Please check input samplesheet -> Multiple runs of a sample must have the same patient_id: ${metas[0].id}")
+    }
+
     return [ metas[0], fastqs ]
 }
-//
-// Get attribute from genome config file e.g. fasta
-//
-def getGenomeAttribute(attribute) {
-    if (params.genomes && params.genome && params.genomes.containsKey(params.genome)) {
-        if (params.genomes[ params.genome ].containsKey(attribute)) {
-            return params.genomes[ params.genome ][ attribute ]
-        }
-    }
-    return null
-}
-
-//
-// Exit pipeline if incorrect --genome key provided
-//
-def genomeExistsError() {
-    if (params.genomes && params.genome && !params.genomes.containsKey(params.genome)) {
-        def error_string = "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n" +
-            "  Genome '${params.genome}' not found in any config files provided to the pipeline.\n" +
-            "  Currently, the available genome keys are:\n" +
-            "  ${params.genomes.keySet().join(", ")}\n" +
-            "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-        error(error_string)
-    }
-}
-//
 // Generate methods description for MultiQC
 //
 def toolCitationText() {

@@ -31,6 +31,8 @@ Why:
 - easier linting and testing
 - less custom Docker maintenance
 
+`nf-core/rnaseq` is the main reference implementation for these standard RNA-seq pieces. The goal is to reuse the same maintained module ecosystem and conventions, not to wrap the whole `rnaseq` pipeline inside this pipeline.
+
 ## ISAR packaging
 
 The preferred first implementation for the `IsoformSwitchAnalyzeR` step is:
@@ -68,7 +70,7 @@ Do not use one large pipeline-wide custom image.
 
 ## SRA packaging
 
-The optional SRA mode can be implemented in two ways:
+SRA mode is part of the V1 scope and can be approached in two ways:
 
 1. reuse shared downloader-related `nf-core` components if they fit well
 2. keep local SRA download / conversion modules if that is simpler and more reliable
