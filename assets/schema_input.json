@@ -13,6 +13,18 @@
                 "errorMessage": "Sample name must be provided and cannot contain spaces",
                 "meta": ["id"]
             },
+            "condition": {
+                "type": "string",
+                "pattern": "^\\S+$",
+                "errorMessage": "Condition must be provided and cannot contain spaces",
+                "meta": ["condition"]
+            },
+            "replicate": {
+                "type": "integer",
+                "minimum": 1,
+                "errorMessage": "Replicate must be provided as a positive integer",
+                "meta": ["replicate"]
+            },
             "fastq_1": {
                 "type": "string",
                 "format": "file-path",
@@ -26,8 +38,20 @@
                 "exists": true,
                 "pattern": "^([\\S\\s]*\\/)?[^\\s\\/]+\\.f(ast)?q\\.gz$",
                 "errorMessage": "FastQ file for reads 2 cannot contain spaces and must have extension '.fq.gz' or '.fastq.gz'"
+            },
+            "strandedness": {
+                "type": "string",
+                "enum": ["forward", "reverse", "unstranded", "auto"],
+                "errorMessage": "Strandedness must be provided and be one of 'auto', 'forward', 'reverse' or 'unstranded'",
+                "meta": ["strandedness"]
+            },
+            "batch": {
+                "type": "string",
+                "pattern": "^\\S*$",
+                "errorMessage": "Batch cannot contain spaces",
+                "meta": ["batch"]
             }
         },
-        "required": ["sample", "fastq_1"]
+        "required": ["sample", "condition", "replicate", "fastq_1", "strandedness"]
     }
 }

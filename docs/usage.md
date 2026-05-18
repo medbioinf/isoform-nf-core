@@ -8,7 +8,7 @@
 
 ## Samplesheet input
 
-You will need to create a samplesheet with information about the samples you would like to analyse before running the pipeline. Use this parameter to specify its location. It has to be a comma-separated file with 3 columns, and a header row as shown in the examples below.
+You will need to create a samplesheet with information about the samples you would like to analyse before running the pipeline. Use this parameter to specify its location. It has to be a comma-separated file with a header row as shown in the examples below.
 
 ```bash
 --input '[path to samplesheet file]'
@@ -16,49 +16,68 @@ You will need to create a samplesheet with information about the samples you wou
 
 ### Multiple runs of the same sample
 
-The `sample` identifiers have to be the same when you have re-sequenced the same sample more than once e.g. to increase sequencing depth. The pipeline will concatenate the raw reads before performing any downstream analysis. Below is an example for the same sample sequenced across 3 lanes:
+The `sample` identifiers have to be the same when you have re-sequenced the same sample more than once e.g. to increase sequencing depth. Re-sequenced rows for the same sample must use the same `condition`, `replicate`, `strandedness`, and `batch` values. The pipeline will concatenate the raw reads before performing any downstream analysis. Below is an example for the same sample sequenced across 3 lanes:
 
 ```csv title="samplesheet.csv"
-sample,fastq_1,fastq_2
-CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz
-CONTROL_REP1,AEG588A1_S1_L003_R1_001.fastq.gz,AEG588A1_S1_L003_R2_001.fastq.gz
-CONTROL_REP1,AEG588A1_S1_L004_R1_001.fastq.gz,AEG588A1_S1_L004_R2_001.fastq.gz
+sample,condition,replicate,fastq_1,fastq_2,strandedness,batch
+CONTROL_REP1,control,1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz,auto,batch1
+CONTROL_REP1,control,1,AEG588A1_S1_L003_R1_001.fastq.gz,AEG588A1_S1_L003_R2_001.fastq.gz,auto,batch1
+CONTROL_REP1,control,1,AEG588A1_S1_L004_R1_001.fastq.gz,AEG588A1_S1_L004_R2_001.fastq.gz,auto,batch1
 ```
 
 ### Full samplesheet
 
-The pipeline will auto-detect whether a sample is single- or paired-end using the information provided in the samplesheet. The samplesheet can have as many columns as you desire, however, there is a strict requirement for the first 3 columns to match those defined in the table below.
+The pipeline will auto-detect whether a sample is single- or paired-end using the information provided in the samplesheet. The required columns are `sample`, `condition`, `replicate`, `fastq_1`, and `strandedness`; `fastq_2` and `batch` are optional.
 
 A final samplesheet file consisting of both single- and paired-end data may look something like the one below. This is for 6 samples, where `TREATMENT_REP3` has been sequenced twice.
 
 ```csv title="samplesheet.csv"
-sample,fastq_1,fastq_2
-CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz
-CONTROL_REP2,AEG588A2_S2_L002_R1_001.fastq.gz,AEG588A2_S2_L002_R2_001.fastq.gz
-CONTROL_REP3,AEG588A3_S3_L002_R1_001.fastq.gz,AEG588A3_S3_L002_R2_001.fastq.gz
-TREATMENT_REP1,AEG588A4_S4_L003_R1_001.fastq.gz,
-TREATMENT_REP2,AEG588A5_S5_L003_R1_001.fastq.gz,
-TREATMENT_REP3,AEG588A6_S6_L003_R1_001.fastq.gz,
-TREATMENT_REP3,AEG588A6_S6_L004_R1_001.fastq.gz,
+sample,condition,replicate,fastq_1,fastq_2,strandedness,batch
+CONTROL_REP1,control,1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz,auto,batch1
+CONTROL_REP2,control,2,AEG588A2_S2_L002_R1_001.fastq.gz,AEG588A2_S2_L002_R2_001.fastq.gz,auto,batch1
+CONTROL_REP3,control,3,AEG588A3_S3_L002_R1_001.fastq.gz,AEG588A3_S3_L002_R2_001.fastq.gz,auto,batch1
+TREATMENT_REP1,treatment,1,AEG588A4_S4_L003_R1_001.fastq.gz,,auto,batch1
+TREATMENT_REP2,treatment,2,AEG588A5_S5_L003_R1_001.fastq.gz,,auto,batch1
+TREATMENT_REP3,treatment,3,AEG588A6_S6_L003_R1_001.fastq.gz,,auto,batch1
+TREATMENT_REP3,treatment,3,AEG588A6_S6_L004_R1_001.fastq.gz,,auto,batch1
 ```
 
 | Column    | Description                                                                                                                                                                            |
 | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `sample`  | Custom sample name. This entry will be identical for multiple sequencing libraries/runs from the same sample. Spaces in sample names are automatically converted to underscores (`_`). |
+| `condition` | Biological or experimental condition for this sample, for example `control` or `treatment`. |
+| `replicate` | Positive integer replicate number within the condition. |
 | `fastq_1` | Full path to FastQ file for Illumina short reads 1. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz".                                                             |
 | `fastq_2` | Full path to FastQ file for Illumina short reads 2. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz".                                                             |
+| `strandedness` | Library strandedness. Must be one of `auto`, `forward`, `reverse`, or `unstranded`. |
+| `batch` | Optional batch label for downstream analyses. |
 
 An [example samplesheet](../assets/samplesheet.csv) has been provided with the pipeline.
+
+### Contrast input
+
+You can optionally provide a contrast file to define dataset-specific pairwise comparisons without changing the pipeline code:
+
+```bash
+--contrasts '[path to contrasts file]'
+```
+
+The file must contain `contrast`, `case`, and `control` columns. The `case` and `control` values must match values in the samplesheet `condition` column.
+
+```csv title="contrasts.csv"
+contrast,case,control
+treated_vs_control,treatment,control
+```
 
 ## Running the pipeline
 
 The typical command for running the pipeline is as follows:
 
 ```bash
-nextflow run anton/isoform --input ./samplesheet.csv --outdir ./results --genome GRCh37 -profile docker
+nextflow run anton/isoform --input ./samplesheet.csv --contrasts ./contrasts.csv --outdir ./results --genome GRCh37 -profile docker
 ```
 
-This will launch the pipeline with the `docker` configuration profile. See below for more information about profiles.
+This will launch the pipeline with the `docker` configuration profile. Docker is the recommended runtime for this pipeline and is the default runtime used by the test suite. See below for more information about profiles.
 
 Note that the pipeline will create the following files in your working directory:
 
@@ -86,6 +105,7 @@ with:
 
 ```yaml title="params.yaml"
 input: './samplesheet.csv'
+contrasts: './contrasts.csv'
 outdir: './results/'
 genome: 'GRCh37'
 <...>

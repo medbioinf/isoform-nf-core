@@ -20,8 +20,19 @@
                     "mimetype": "text/csv",
                     "pattern": "^\\S+\\.csv$",
                     "description": "Path to comma-separated file containing information about the samples in the experiment.",
-                    "help_text": "You will need to create a design file with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. It has to be a comma-separated file with 3 columns, and a header row.",
+                    "help_text": "You will need to create a samplesheet with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. Required columns are `sample`, `condition`, `replicate`, `fastq_1`, and `strandedness`; `fastq_2` and `batch` are optional.",
                     "fa_icon": "fas fa-file-csv"
+                },
+                "contrasts": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "schema": "assets/schema_contrasts.json",
+                    "mimetype": "text/csv",
+                    "pattern": "^\\S+\\.csv$",
+                    "description": "Optional CSV file describing pairwise condition contrasts.",
+                    "help_text": "Use this file to define dataset-specific comparisons without changing pipeline code. It must contain `contrast`, `case`, and `control` columns whose condition values match the `condition` column in the samplesheet.",
+                    "fa_icon": "fas fa-not-equal"
                 },
                 "outdir": {
                     "type": "string",

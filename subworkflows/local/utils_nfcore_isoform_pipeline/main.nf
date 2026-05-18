@@ -84,15 +84,15 @@ workflow PIPELINE_INITIALISATION {
     // Create channel from input file provided through params.input
     //
 
+    input_rows = samplesheetToList(params.input, "${projectDir}/assets/schema_input.json")
+    contrast_rows = params.contrasts ? samplesheetToList(params.contrasts, "${projectDir}/assets/schema_contrasts.json") : []
+    validateContrasts(input_rows, contrast_rows)
+
     channel
-        .fromList(samplesheetToList(params.input, "${projectDir}/assets/schema_input.json"))
+        .fromList(input_rows)
         .map {
             meta, fastq_1, fastq_2 ->
-                if (!fastq_2) {
-                    return [ meta.id, meta + [ single_end:true ], [ fastq_1 ] ]
-                } else {
-                    return [ meta.id, meta + [ single_end:false ], [ fastq_1, fastq_2 ] ]
-                }
+                sampleRowToInput(meta, fastq_1, fastq_2)
         }
         .groupTuple()
         .map { samplesheet ->
@@ -172,6 +172,18 @@ def validateInputParameters() {
 //
 // Validate channels from input samplesheet
 //
+def sampleRowToInput(meta, fastq_1, fastq_2) {
+    if (!meta.id) {
+        error("Please check input samplesheet -> Sample name must be provided")
+    }
+
+    if (!fastq_2) {
+        return [ meta.id, meta + [ single_end:true ], [ fastq_1 ] ]
+    } else {
+        return [ meta.id, meta + [ single_end:false ], [ fastq_1, fastq_2 ] ]
+    }
+}
+
 def validateInputSamplesheet(input) {
     def (metas, fastqs) = input[1..2]
 
@@ -181,7 +193,52 @@ def validateInputSamplesheet(input) {
         error("Please check input samplesheet -> Multiple runs of a sample must be of the same datatype i.e. single-end or paired-end: ${metas[0].id}")
     }
 
+    // Check that multiple runs of the same sample have identical sample-level metadata.
+    ['condition', 'replicate', 'strandedness', 'batch'].each { field ->
+        def values = metas.collect { meta ->
+            meta.containsKey(field) ? meta[field] : null
+        }.findAll { value ->
+            value != null && !(value instanceof List && value.isEmpty()) && value.toString() != ''
+        }.unique()
+
+        if (values.size() > 1) {
+            error("Please check input samplesheet -> Multiple runs of a sample must have the same '${field}' value: ${metas[0].id}")
+        }
+    }
+
     return [ metas[0], fastqs ]
+}
+
+def validateContrasts(sample_rows, contrast_rows) {
+    if (!contrast_rows) {
+        return
+    }
+
+    def sample_conditions = sample_rows.collect { row ->
+        getSamplesheetRowMeta(row).condition
+    }.findAll { condition ->
+        condition != null && condition.toString() != ''
+    }.unique()
+
+    contrast_rows.each { row ->
+        def contrast = getSamplesheetRowMeta(row)
+        ['case', 'control'].each { field ->
+            def condition = contrast[field]
+            if (!sample_conditions.contains(condition)) {
+                error("Please check contrast file -> Contrast '${contrast.id}' ${field} condition '${condition}' is not present in the samplesheet condition column")
+            }
+        }
+    }
+}
+
+def getSamplesheetRowMeta(row) {
+    if (row instanceof Map) {
+        return row
+    }
+    if (row instanceof List && row[0] instanceof Map) {
+        return row[0]
+    }
+    error("Please check input files -> Could not extract row metadata from samplesheet")
 }
 //
 // Get attribute from genome config file e.g. fasta
