@@ -1,331 +1,110 @@
-# V1 Interface Design
+# V1 Interface Status
 
-This document defines the proposed user-facing interface for the first real version of the `isoform-nf-core` pipeline.
+Last updated: 2026-06-02
 
-It is intended to be the contract that guides the first implementation steps:
+This document records the current implemented V1 interface. It replaces the earlier planning notes and should be read together with `docs/usage.md` and `nextflow_schema.json`.
 
-- `nextflow.config` parameter design
-- `nextflow_schema.json`
-- input validation
-- workflow branching
-- test data and examples
+## Scope
 
-## V1 scope
+The implemented V1 path is:
 
-The first version of the pipeline should support the following analysis path:
+`FASTQ or SRA manifest -> FastQC -> cat/fastq -> fastp -> Salmon -> IsoformSwitchAnalyzeR -> MultiQC`
 
-`FASTQ or SRA manifest -> QC / trimming -> Salmon -> IsoformSwitchAnalyzeR`
+The pipeline is reference-based. It quantifies transcripts from the supplied reference transcript FASTA and GTF; it does not discover de novo novel isoforms.
 
-V1 should support:
+## Input Modes
 
-- paired-end RNA-seq
-- single-end RNA-seq
-- primary input via local FASTQ samplesheet
-- public-data input via SRA manifest
-- transcript-level quantification with Salmon
-- cohort-level isoform-switch analysis with `IsoformSwitchAnalyzeR`
-- presentable cohort-level outputs and summaries
+Exactly one input mode must be provided:
 
-V1 should not include:
+- `--input`: local FASTQ samplesheet
+- `--sra_manifest`: public SRA/ENA/DRA run manifest
 
-- dataset-branded modes such as `gse95132_crc`
-- bundled GEO-specific manifests as defaults
-- hardcoded condition labels such as `normal` and `crc`
-- every optional external ISAR annotation tool from the vignette
+Both modes are normalized into the same downstream read-processing path.
 
-## Important scope clarification
+## FASTQ Samplesheet
 
-V1 is designed to analyze **annotated / reference isoforms**, not to discover genuinely novel isoforms de novo.
-
-That means:
-
-- the pipeline quantifies against a supplied reference transcriptome
-- the downstream ISAR step analyzes changes in usage of those reference transcripts
-
-So if someone asks whether the V1 pipeline detects "novel isoforms", the answer is:
-
-- not as a primary feature of this design
-- V1 is a reference-based isoform-switch pipeline
-
-## Input modes
-
-V1 should support two top-level input modes.
-
-### Mode 1: FASTQ samplesheet
-
-This should be the primary and recommended mode.
-
-User provides:
-
-- `--input`
-- `--transcript_fasta`
-- `--genome_fasta`
-- `--gtf`
-
-The samplesheet should describe the cohort and FASTQ locations directly.
-
-### Mode 2: SRA manifest
-
-This should be the V1 convenience mode for public datasets.
-
-User provides:
-
-- `--sra_manifest`
-- `--transcript_fasta`
-- `--genome_fasta`
-- `--gtf`
-
-The manifest should describe the cohort and the SRA accessions.
-
-The pipeline should then:
-
-1. download / convert public data to FASTQ
-2. normalize those inputs into the same internal representation used by FASTQ mode
-3. continue through the same generic workflow
-
-## Input mode rules
-
-The pipeline should enforce:
-
-- exactly one of `--input` or `--sra_manifest`
-- reference files are always required in v1
-- the rest of the workflow should operate on one normalized internal sample representation
-
-Implementation note:
-
-- the interface and schema can define `--sra_manifest` before the workflow branch is implemented
-- until the branch exists, runtime validation should fail clearly when `--sra_manifest` is used
-
-## FASTQ samplesheet design
-
-### Required columns
+Required columns:
 
 - `sample`
 - `condition`
+- `replicate`
 - `fastq_1`
 - `strandedness`
 
-### Optional columns
+Optional columns:
 
 - `fastq_2`
-- `patient_id`
+- `batch`
 
-### Column meaning
-
-- `sample`
-  - sample identifier used throughout the pipeline
-  - may appear in multiple rows when one biological sample has multiple sequencing runs
-- `condition`
-  - biological condition used for comparison in the ISAR step
-- `fastq_1`
-  - path to the first FASTQ file, or the only FASTQ file for single-end data
-- `fastq_2`
-  - path to the second FASTQ file for paired-end data
-- `strandedness`
-  - library strandedness, one of `auto`, `forward`, `reverse`, or `unstranded`
-  - follows the nf-core style used by `nf-core/rnaseq`
-- `patient_id`
-  - optional blocking / pairing variable for matched designs
-
-### Validation rules
-
-- repeated rows with the same `sample` are allowed for multiple sequencing runs
-- `condition` must be non-empty
-- `fastq_1` must always be present
-- `strandedness` must be one of `auto`, `forward`, `reverse`, or `unstranded`
-- read layout is inferred from `fastq_2`
-- if `fastq_2` is populated, the row is paired-end
-- if `fastq_2` is empty, the row is single-end
-- all rows for the same `sample` must agree on `condition`, `strandedness`, `patient_id` when present, and inferred read layout
-
-### Example FASTQ samplesheet
+Example:
 
 ```csv
-sample,condition,fastq_1,fastq_2,strandedness,patient_id
-sample_normal_1,normal,/data/sample_normal_1_L001_R1.fastq.gz,/data/sample_normal_1_L001_R2.fastq.gz,auto,patient01
-sample_normal_1,normal,/data/sample_normal_1_L002_R1.fastq.gz,/data/sample_normal_1_L002_R2.fastq.gz,auto,patient01
-sample_tumor_1,tumor,/data/sample_tumor_1.fastq.gz,,auto,patient02
+sample,condition,replicate,fastq_1,fastq_2,strandedness,batch
+CONTROL_REP1,control,1,/data/control_R1.fastq.gz,/data/control_R2.fastq.gz,auto,batch1
+TREATED_REP1,treated,1,/data/treated_R1.fastq.gz,,auto,batch1
 ```
 
-## SRA manifest design
+Rows with the same `sample` are treated as multiple sequencing runs for one biological sample. They must agree on `condition`, `replicate`, `strandedness`, `batch`, and read layout.
 
-### Required columns
+## SRA Manifest
+
+Required columns:
 
 - `sample`
 - `condition`
-- `sra_run`
+- `replicate`
+- `run_accession`
 - `strandedness`
 
-### Optional columns
+Optional columns:
 
-- `patient_id`
+- `batch`
 
-### Column meaning
-
-- `sample`
-  - sample identifier used throughout the pipeline
-  - may appear in multiple rows when one biological sample has multiple sequencing runs
-- `condition`
-  - biological condition used for comparison in the ISAR step
-- `sra_run`
-  - SRA run accession such as `SRR1234567`
-- `strandedness`
-  - library strandedness, one of `auto`, `forward`, `reverse`, or `unstranded`
-- `patient_id`
-  - optional blocking / pairing variable
-
-### Validation rules
-
-- repeated rows with the same `sample` are allowed for multiple SRA runs
-- `condition` must be non-empty
-- `sra_run` must be non-empty
-- `strandedness` must be one of `auto`, `forward`, `reverse`, or `unstranded`
-- read layout is determined after SRA download / conversion
-- all rows for the same `sample` must agree on `condition`, `strandedness`, and `patient_id` when present
-
-### Example SRA manifest
+Example:
 
 ```csv
-sample,condition,sra_run,strandedness,patient_id
-patient32_normal,normal,SRR5275286,auto,32
-patient32_normal,normal,SRR5275287,auto,32
-patient32_crc,crc,SRR5275288,auto,32
+sample,condition,replicate,run_accession,strandedness,batch
+CONTROL_REP1,control,1,SRR000001,auto,batch1
+TREATED_REP1,treated,1,SRR000002,auto,batch1
 ```
 
-## Reference inputs
+SRA mode uses `prefetch` followed by `fasterq-dump`, compresses the generated FASTQs, detects single-end versus paired-end output, and then enters the normal FASTQ path.
 
-V1 should require these references in both modes:
+## Contrast File
+
+The optional `--contrasts` file defines pairwise condition comparisons:
+
+```csv
+contrast,case,control
+treated_vs_control,treated,control
+```
+
+The `case` and `control` values must exist in the input `condition` column.
+
+## Reference Inputs
+
+Required:
 
 - `--transcript_fasta`
-- `--genome_fasta`
 - `--gtf`
 
-### Why all three are required
+Optional:
 
-- `transcript_fasta` and `genome_fasta` are needed for decoy-aware Salmon indexing
-- `gtf` is needed for the ISAR import / annotation layer
+- `--genome_fasta`
 
-The pipeline should not hide dataset-specific reference choices behind branded flags.
+If `--genome_fasta` is provided, Salmon builds a decoy-aware index. Transcript IDs should match between the transcript FASTA and GTF.
 
-## Proposed initial user-facing parameters
+## Main Analysis Parameters
 
-These are the parameters that should likely appear in the first real schema revision.
+- `--salmon_lib_type`: optional explicit Salmon library type; leave unset for pipeline-derived/default behavior.
+- `--run_isar`: run or skip IsoformSwitchAnalyzeR, default `true`.
+- `--isar_dif_cutoff`: minimum absolute isoform fraction difference for switch testing, default `0.1`.
+- `--isar_qvalue_cutoff`: q-value cutoff for switch testing, default `0.05`.
+- `--isar_top_n`: number of top switches to export when switches are detected.
+- `--sra_prefetch_max_size`: maximum archive size accepted by SRA `prefetch`, default `100G`.
 
-### Input and output
+## Current Limitations
 
-- `input`
-  - FASTQ samplesheet path
-- `sra_manifest`
-  - SRA manifest path
-- `outdir`
-  - output directory
-
-### References
-
-- `transcript_fasta`
-- `genome_fasta`
-- `gtf`
-
-### Workflow behavior
-
-- `skip_qc`
-  - optional boolean to skip `FASTQC`
-- `skip_trimming`
-  - optional boolean to skip `FASTP`
-- `run_isar`
-  - boolean, default `true`
-
-### Salmon options
-
-- `salmon_index_k`
-  - k-mer size used when building the Salmon index
-  - smaller values can help with shorter reads
-- `salmon_quant_libtype`
-  - default likely `A`
-  - tells Salmon what library type to assume, or to auto-detect it
-- `extra_salmon_index_args`
-  - optional free-text arguments appended to `salmon index`
-  - keeps the pipeline flexible without exposing every Salmon flag as a separate pipeline parameter
-- `extra_salmon_quant_args`
-  - optional free-text arguments appended to `salmon quant`
-  - useful for advanced Salmon options such as bias correction or single-end fragment length settings
-
-### ISAR comparison options
-
-- `isar_condition_1`
-  - first condition label to compare, for example `normal`
-- `isar_condition_2`
-  - second condition label to compare, for example `tumor`
-- `dif_cutoff`
-  - minimum change in isoform usage required before a switch is considered meaningful
-- `qvalue_cutoff`
-  - false-discovery-rate threshold used to decide statistical significance
-- `isar_top_n`
-  - how many top switch candidates to include in the main ranked output
-- `isar_detect_unwanted_effects`
-  - whether ISAR should try to detect unwanted technical effects during import
-
-### SRA mode options
-
-- `sra_prefetch_max_size`
-  - maximum archive size that `prefetch` is allowed to download
-- `download_threads`
-  - number of threads to use for download and FASTQ conversion steps
-
-These options belong to the V1 SRA input mode.
-
-### Reporting
-
-- `multiqc_title`
-  - custom title shown at the top of the MultiQC report
-  
-## Internal normalized sample model
-
-Regardless of input mode, the pipeline should convert inputs into one shared internal structure.
-
-Suggested meta fields:
-
-- `id`
-- `condition`
-- `single_end`
-- `strandedness`
-- `patient_id`
-- `sra_run`
-
-Suggested read representation:
-
-- single-end: one FASTQ file
-- paired-end: ordered pair of FASTQ files
-
-This normalization is important because it lets the main workflow stay generic.
-
-## Expected V1 outputs
-
-The pipeline should produce at least:
-
-- per-sample `FASTQC` results unless skipped
-- per-sample `FASTP` reports unless skipped
-- `MultiQC` report
-- per-sample Salmon quantification directories
-- cohort metadata / design outputs used by ISAR
-- ISAR result tables
-- ISAR plots
-- pipeline execution metadata
-
-These outputs should be structured so they are not only technically correct, but also reasonably presentable for project reporting and discussion.
-
-In practice, that means V1 should make it easy to locate:
-
-- the main ranked switch candidates
-- the main cohort summary tables
-- the main QC summary
-
-## Immediate implementation consequences
-
-Before porting large amounts of code, the next steps should be:
-
-1. update `nextflow.config` params in `isoform-nf-core`
-2. replace the template `input` schema with the proposed FASTQ samplesheet contract
-3. add schema support for `sra_manifest`
-4. define the internal sample metadata contract in the workflow code
-5. only then start porting reusable logic from the prototype repo
+- `batch` is validated and preserved as metadata, but not yet modeled statistically in ISAR.
+- The current ISAR wrapper runs the DEXSeq-based switch test only when there are exactly two conditions with at least two samples per condition.
+- Additional IsoformSwitchAnalyzeR companion tools such as Pfam, SignalP, IUPred2A, DeepLoc2, and DeepTMHMM are not part of the reusable V1 path yet.

@@ -1,239 +1,73 @@
-# V1 Testing Strategy
+# V1 Testing Status And Strategy
 
-This document defines the testing strategy for the first real implementation of `isoform-nf-core`.
+Last updated: 2026-06-02
 
-The main goal is to make the pipeline:
+This document describes the current validation state and the remaining testing work for V1.
 
-- easy to validate during development
-- compatible with `nf-core` expectations
-- testable in CI without depending on large public datasets
+## Current Automated Smoke Test
 
-## Testing principles
+The `test` profile now uses tiny synthetic data stored in the repository:
 
-The pipeline should use two different kinds of validation:
+- synthetic transcript FASTA
+- synthetic genome FASTA
+- synthetic GTF
+- four tiny single-end FASTQ files
+- 2 control and 2 treated samples
+- a contrast file
 
-### 1. CI and nf-test validation
+The smoke test exercises:
 
-Use small synthetic data and deterministic outputs.
+- samplesheet parsing
+- FastQC
+- `cat/fastq`
+- fastp
+- Salmon index and quantification
+- IsoformSwitchAnalyzeR import and switch testing
+- MultiQC
 
-Purpose:
+The profile has been run successfully on the VM with Docker.
 
-- fast feedback
-- stable `nf-test` snapshots
-- compatibility with `nf-core` CI and lint expectations
+## Manual Real-Data Validation
 
-### 2. Real-data validation
+Real-data validation is intentionally outside normal CI.
 
-Use the existing prototype datasets outside CI.
+Validated so far:
 
-Purpose:
+- `GSE95132` minimal 1-vs-1 SRA run
+  - confirmed SRA download/conversion, preprocessing, Salmon, ISAR import, and MultiQC
+  - ISAR correctly skipped statistical testing because there was only one replicate per condition
+- `GSE95132` 2-vs-2 SRA run
+  - confirmed SRA mode, full downstream processing, and DEXSeq-based ISAR test execution
+  - no genes passed the current switch cutoffs in that small subset, which is acceptable for a workflow validation run
 
-- confirm behavior on real sequencing data
-- check runtime, memory, and disk usage
-- validate input assumptions and biological outputs
+These runs also revealed and fixed two useful real-world issues:
 
-The important rule is:
+- SRA mode should use `prefetch` before `fasterq-dump`.
+- The newest IsoformSwitchAnalyzeR BioContainer was missing `MASS`, so the ISAR module was pinned to a working BioContainer and the conda environment includes `r-mass`.
 
-- synthetic data is for automated tests
-- real datasets are for manual or scheduled validation
+## What Is Still Missing
 
-## What should be tested in v1
+Recommended next tests:
 
-The pipeline needs to support both read layouts and both input modes.
+- Add a dedicated paired-end FASTQ smoke test.
+- Add a dedicated single-end FASTQ smoke test if the current test is kept focused on one layout.
+- Add an SRA-mode automated test only if a tiny deterministic public accession or a stubbed approach is acceptable.
+- Update `nf-test` snapshots once the output contract stabilizes.
+- Add assertions for important ISAR files such as `analysis_notes.txt`, `switchAnalyzeRlist_imported.rds`, and switch tables when switches are detected.
 
-That means the testing plan should explicitly cover:
+## Testing Principles
 
-- paired-end FASTQ mode
-- single-end FASTQ mode
-- repeated FASTQ rows for multiple sequencing runs of the same sample
-- SRA mode
-- the shared downstream path into Salmon
-- the optional ISAR analysis step
+- Use synthetic data for fast CI and deterministic snapshots.
+- Use real public datasets for manual validation of runtime, SRA behavior, mapping rates, and biological plausibility.
+- Avoid placing large public SRA downloads in routine CI.
+- Prefer Docker or Singularity/Apptainer profiles for reproducibility.
 
-## Recommended test layers
+## Current Minimum Acceptance
 
-### Layer 1: Minimal pipeline smoke tests
+Before treating a future change as safe, run at least:
 
-These are the highest-priority tests.
+```bash
+nextflow run . -profile test,docker --outdir results/test
+```
 
-They should confirm that the whole pipeline runs successfully on very small synthetic datasets.
-
-Required smoke tests:
-
-1. paired-end FASTQ smoke test
-2. single-end FASTQ smoke test
-3. repeated-run samplesheet validation test
-
-These tests should:
-
-- use tiny synthetic references
-- use tiny synthetic FASTQ files
-- complete quickly
-- verify the basic workflow graph and file naming
-
-### Layer 2: Optional ISAR-enabled smoke test
-
-This test should run the downstream ISAR step on minimal synthetic data if runtime and determinism are acceptable.
-
-Purpose:
-
-- confirm the integration between Salmon output and the ISAR module
-- catch breakage in the R environment or interface
-
-This test does not need to prove biological realism.
-
-It only needs to prove:
-
-- the step runs
-- outputs are created
-- snapshots are stable enough for CI
-
-### Layer 3: SRA-mode smoke test
-
-This should not be the first priority.
-
-SRA mode adds download complexity and may be harder to keep deterministic in CI.
-
-Recommended approach:
-
-- first implement SRA mode
-- validate it manually
-- then decide whether a tiny mocked or lightweight automated test is practical
-
-If a stable CI test is not practical at first, this can remain a manual validation path temporarily.
-
-## Recommended V1 test matrix
-
-### Required in early implementation
-
-- `test`
-  - paired-end FASTQ mode
-  - `run_isar = false`
-- `test_single`
-  - single-end FASTQ mode
-  - `run_isar = false`
-
-These should be the first two test profiles brought into shape.
-
-### Strongly recommended after the ISAR module is working
-
-- `test_isar`
-  - small synthetic data
-  - `run_isar = true`
-
-### Later / optional
-
-- `test_sra`
-  - SRA input path if reproducible enough for automation
-
-## Synthetic test data requirements
-
-The synthetic test data should be:
-
-- very small
-- deterministic
-- stored specifically for this pipeline
-- realistic enough to exercise both single-end and paired-end code paths
-
-The data should include:
-
-- tiny transcript FASTA
-- tiny genome FASTA
-- tiny GTF
-- paired-end FASTQ example
-- single-end FASTQ example
-- matching samplesheets
-
-The prototype repo already contains useful synthetic ideas that can be adapted, but the actual CI test assets should live in a stable form suitable for the `isoform-nf-core` pipeline.
-
-## Snapshot philosophy
-
-The tests should snapshot:
-
-- stable output paths
-- stable key text outputs
-- software versions file, after removing the variable Nextflow version if needed
-
-The tests should avoid snapshotting:
-
-- unstable HTML output internals if they change too often
-- timestamps
-- run-specific trace metadata
-
-This matches normal `nf-test` practice and keeps the tests maintainable.
-
-## What to assert in the first tests
-
-For the first pipeline smoke tests, useful assertions are:
-
-- workflow succeeds
-- expected output directories exist
-- expected key files exist
-- file names are stable
-
-For example:
-
-- `multiqc_report.html`
-- Salmon quant directories
-- expected `pipeline_info` outputs
-
-For `test_isar`, additional useful assertions are:
-
-- ISAR result directory exists
-- key result tables exist
-
-For example:
-
-- `switch_summary.csv`
-- `top_switches.csv`
-- filtered annotation output if that remains part of the module design
-
-## Real-data validation plan
-
-Real-data validation should remain outside routine CI.
-
-Use:
-
-- `GSE50760` for paired-end real-data validation
-- `GSE95132` for single-end and SRA-mode validation
-
-These validation runs should answer:
-
-- does the pipeline behave correctly on real cohorts?
-- are the memory and runtime defaults reasonable?
-- are there hidden assumptions that do not show up in synthetic tests?
-
-## Immediate implications for the scaffold
-
-The current scaffold still contains template placeholders that must be replaced.
-
-Specifically:
-
-- `conf/test.config`
-  - still points at unrelated template test data
-- `tests/nextflow.config`
-  - still uses a placeholder test-data branch
-- `tests/default.nf.test`
-  - should be updated once the real V1 outputs are defined
-
-These should be updated as soon as schema and input parsing are implemented.
-
-## Recommended implementation order
-
-1. build the synthetic paired-end FASTQ test data path
-2. build the synthetic single-end FASTQ test data path
-3. replace template `test` config with paired-end V1 test
-4. add a `test_single` profile
-5. update `tests/default.nf.test` to match the real outputs
-6. add an ISAR-enabled minimal test once the local ISAR module is stable
-
-## Bottom line
-
-The V1 pipeline should be considered test-ready when it has:
-
-- one paired-end smoke test
-- one single-end smoke test
-- deterministic synthetic references and reads
-- `nf-test` snapshots for the stable output contract
-
-That is the minimum testing baseline needed before the pipeline should be treated as a serious `nf-core` implementation candidate.
+For interface or SRA-related changes, also run a small real-data SRA validation on the VM.

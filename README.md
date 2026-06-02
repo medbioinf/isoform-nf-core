@@ -14,17 +14,17 @@
 
 ## Introduction
 
-**Anton-Bch/isoform-nf-core** is a bioinformatics pipeline that ...
+**Anton-Bch/isoform-nf-core** is a reference-based RNA-seq pipeline for isoform switch analysis. It accepts local FASTQ samplesheets or public SRA run manifests, performs read QC and preprocessing, quantifies transcript abundance with Salmon, and imports the results into IsoformSwitchAnalyzeR for differential isoform usage analysis.
 
-<!-- TODO nf-core:
-   Complete this sentence with a 2-3 sentence summary of what types of data the pipeline ingests, a brief overview of the
-   major pipeline sections and the types of output it produces. You're giving an overview to someone new
-   to nf-core here, in 15-20 seconds. For an example, see https://github.com/nf-core/rnaseq/blob/master/README.md#introduction
--->
+The current workflow runs:
 
-<!-- TODO nf-core: Include a figure that guides the user through the major workflow steps. Many nf-core
-     workflows use the "tube map" design for that. See https://nf-co.re/docs/guidelines/graphic_design/workflow_diagrams#examples for examples.   -->
-<!-- TODO nf-core: Fill in short bullet-pointed list of the default steps in the pipeline -->1. Read QC ([`FastQC`](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/))2. Present QC for raw reads ([`MultiQC`](http://multiqc.info/))
+1. Raw read QC with [`FastQC`](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/)
+2. Optional SRA download and conversion with `prefetch` / `fasterq-dump`
+3. Multiple-run concatenation with `cat/fastq`
+4. Adapter and quality filtering with [`fastp`](https://github.com/OpenGene/fastp)
+5. Transcript quantification with [`Salmon`](https://salmon.readthedocs.io/)
+6. Isoform switch import and testing with [`IsoformSwitchAnalyzeR`](https://bioconductor.org/packages/IsoformSwitchAnalyzeR/)
+7. Aggregated reporting with [`MultiQC`](http://multiqc.info/)
 
 ## Usage
 
@@ -76,17 +76,11 @@ The core workflow currently runs read QC, optional run concatenation, fastp prep
 
 Anton-Bch/isoform-nf-core was originally written by Anton Buch and Tobias Polley.
 
-We thank the following people for their extensive assistance in the development of this pipeline:
-
-<!-- TODO nf-core: If applicable, make list of people who have also contributed -->
-
 ## Contributions and Support
 
 If you would like to contribute to this pipeline, please see the [contributing guidelines](.github/CONTRIBUTING.md).
 
 ## Citations
-
-<!-- TODO nf-core: Add bibliography of tools and data used in your pipeline -->
 
 An extensive list of references for the tools used by the pipeline can be found in the [`CITATIONS.md`](CITATIONS.md) file.
 

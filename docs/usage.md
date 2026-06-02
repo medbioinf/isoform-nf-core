@@ -4,7 +4,7 @@
 
 ## Introduction
 
-<!-- TODO nf-core: Add documentation about anything specific to running your pipeline. For general topics, please point to (and add to) the main nf-core website. -->
+The current pipeline implements a reference-based path from FASTQ or SRA input to Salmon transcript quantification and IsoformSwitchAnalyzeR analysis. It does not discover de novo novel isoforms; transcripts must be present in the supplied transcript FASTA / GTF reference.
 
 ## Samplesheet input
 
