@@ -26,10 +26,12 @@ include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_isof
 //
 // WORKFLOW: Run main analysis pipeline depending on type of input
 //
-workflow ANTON_ISOFORM {
+workflow ISOFORM_NF_CORE {
 
     take:
-    samplesheet // channel: samplesheet read in from --input
+    samplesheet   // channel: samplesheet read in from --input
+    sra_manifest  // channel: SRA manifest read in from --sra_manifest
+    metadata_file // path: original metadata CSV used by ISAR
 
     main:
 
@@ -37,9 +39,13 @@ workflow ANTON_ISOFORM {
     // WORKFLOW: Run pipeline
     //
     ISOFORM (
-        samplesheet
+        samplesheet,
+        sra_manifest,
+        metadata_file
     )
     emit:
+    quant_results  = ISOFORM.out.quant_results
+    isar_results   = ISOFORM.out.isar_results
     multiqc_report = ISOFORM.out.multiqc_report // channel: /path/to/multiqc_report.html
 }
 /*
@@ -61,6 +67,7 @@ workflow {
         args,
         params.outdir,
         params.input,
+        params.sra_manifest,
         params.help,
         params.help_full,
         params.show_hidden
@@ -69,8 +76,10 @@ workflow {
     //
     // WORKFLOW: Run main workflow
     //
-    ANTON_ISOFORM (
-        PIPELINE_INITIALISATION.out.samplesheet
+    ISOFORM_NF_CORE (
+        PIPELINE_INITIALISATION.out.samplesheet,
+        PIPELINE_INITIALISATION.out.sra_manifest,
+        PIPELINE_INITIALISATION.out.metadata_file
     )
     //
     // SUBWORKFLOW: Run completion tasks
@@ -82,7 +91,7 @@ workflow {
         params.outdir,
         params.monochrome_logs,
         params.hook_url,
-        ANTON_ISOFORM.out.multiqc_report
+        ISOFORM_NF_CORE.out.multiqc_report
     )
 }
 

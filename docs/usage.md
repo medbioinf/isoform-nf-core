@@ -4,55 +4,92 @@
 
 ## Introduction
 
-This pipeline is still under active implementation.
-
-The current intended V1 interface is documented in:
-
-- [v1_interface_design.md](./v1_interface_design.md)
-
-Until the workflow implementation catches up, treat the interface design document as the current source of truth for the planned parameter contract.
+<!-- TODO nf-core: Add documentation about anything specific to running your pipeline. For general topics, please point to (and add to) the main nf-core website. -->
 
 ## Samplesheet input
 
-You will need to create a samplesheet with information about the samples you would like to analyse before running the pipeline.
-
-The planned V1 FASTQ samplesheet requires at least these columns:
-
-- `sample`
-- `condition`
-- `fastq_1`
-- `strandedness`
-
-Optional columns include:
-
-- `fastq_2`
-- `patient_id`
+You will need to create a samplesheet with information about the samples you would like to analyse before running the pipeline. Use this parameter to specify its location. It has to be a comma-separated file with a header row as shown in the examples below.
 
 ```bash
 --input '[path to samplesheet file]'
 ```
 
-Example:
+### Multiple runs of the same sample
+
+The `sample` identifiers have to be the same when you have re-sequenced the same sample more than once e.g. to increase sequencing depth. Re-sequenced rows for the same sample must use the same `condition`, `replicate`, `strandedness`, and `batch` values. The pipeline will concatenate the raw reads before performing any downstream analysis. Below is an example for the same sample sequenced across 3 lanes:
 
 ```csv title="samplesheet.csv"
-sample,condition,fastq_1,fastq_2,strandedness,patient_id
-CONTROL_1,normal,control_1_L001_R1.fastq.gz,control_1_L001_R2.fastq.gz,auto,patient01
-CONTROL_1,normal,control_1_L002_R1.fastq.gz,control_1_L002_R2.fastq.gz,auto,patient01
-TUMOR_1,tumor,tumor_1.fastq.gz,,auto,patient02
+sample,condition,replicate,fastq_1,fastq_2,strandedness,batch
+CONTROL_REP1,control,1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz,auto,batch1
+CONTROL_REP1,control,1,AEG588A1_S1_L003_R1_001.fastq.gz,AEG588A1_S1_L003_R2_001.fastq.gz,auto,batch1
+CONTROL_REP1,control,1,AEG588A1_S1_L004_R1_001.fastq.gz,AEG588A1_S1_L004_R2_001.fastq.gz,auto,batch1
+```
+
+### Full samplesheet
+
+The pipeline will auto-detect whether a sample is single- or paired-end using the information provided in the samplesheet. The required columns are `sample`, `condition`, `replicate`, `fastq_1`, and `strandedness`; `fastq_2` and `batch` are optional.
+
+A final samplesheet file consisting of both single- and paired-end data may look something like the one below. This is for 6 samples, where `TREATMENT_REP3` has been sequenced twice.
+
+```csv title="samplesheet.csv"
+sample,condition,replicate,fastq_1,fastq_2,strandedness,batch
+CONTROL_REP1,control,1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz,auto,batch1
+CONTROL_REP2,control,2,AEG588A2_S2_L002_R1_001.fastq.gz,AEG588A2_S2_L002_R2_001.fastq.gz,auto,batch1
+CONTROL_REP3,control,3,AEG588A3_S3_L002_R1_001.fastq.gz,AEG588A3_S3_L002_R2_001.fastq.gz,auto,batch1
+TREATMENT_REP1,treatment,1,AEG588A4_S4_L003_R1_001.fastq.gz,,auto,batch1
+TREATMENT_REP2,treatment,2,AEG588A5_S5_L003_R1_001.fastq.gz,,auto,batch1
+TREATMENT_REP3,treatment,3,AEG588A6_S6_L003_R1_001.fastq.gz,,auto,batch1
+TREATMENT_REP3,treatment,3,AEG588A6_S6_L004_R1_001.fastq.gz,,auto,batch1
 ```
 
 | Column    | Description                                                                                                                                                                            |
 | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sample`  | Sample identifier used throughout the pipeline. Repeat the same ID for multiple sequencing runs of one biological sample. |
-| `condition` | Biological condition used in the ISAR comparison step. |
-| `fastq_1` | Full path to FASTQ reads 1, or the only FASTQ file for single-end data. |
-| `fastq_2` | Full path to FASTQ reads 2 for paired-end data. If empty, the row is treated as single-end. |
-| `strandedness` | Library strandedness: `auto`, `forward`, `reverse`, or `unstranded`. |
-| `patient_id` | Optional pairing / blocking metadata for matched samples. |
-
-Rows with the same `sample` are grouped as multiple runs of the same sample. They must use the same `condition`, `strandedness`, optional `patient_id`, and inferred read layout.
+| `sample`  | Custom sample name. This entry will be identical for multiple sequencing libraries/runs from the same sample. Spaces in sample names are automatically converted to underscores (`_`). |
+| `condition` | Biological or experimental condition for this sample, for example `control` or `treatment`. |
+| `replicate` | Positive integer replicate number within the condition. |
+| `fastq_1` | Full path to FastQ file for Illumina short reads 1. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz".                                                             |
+| `fastq_2` | Full path to FastQ file for Illumina short reads 2. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz".                                                             |
+| `strandedness` | Library strandedness. Must be one of `auto`, `forward`, `reverse`, or `unstranded`. |
+| `batch` | Optional batch label for downstream analyses. |
 
 An [example samplesheet](../assets/samplesheet.csv) has been provided with the pipeline.
+
+### Contrast input
+
+You can optionally provide a contrast file to define dataset-specific pairwise comparisons without changing the pipeline code:
+
+```bash
+--contrasts '[path to contrasts file]'
+```
+
+The file must contain `contrast`, `case`, and `control` columns. The `case` and `control` values must match values in the samplesheet `condition` column.
+
+```csv title="contrasts.csv"
+contrast,case,control
+treated_vs_control,treatment,control
+```
+
+### Minimal SRA manifest input
+
+As an alternative to `--input`, the pipeline can start from public SRA run accessions:
+
+```bash
+--sra_manifest '[path to SRA manifest file]'
+```
+
+The minimal SRA manifest contains sample metadata plus one run accession per row:
+
+```csv title="sra_manifest.csv"
+sample,condition,replicate,run_accession,strandedness,batch
+CONTROL_REP1,control,1,SRR000001,auto,batch1
+TREATMENT_REP1,treatment,1,SRR000002,auto,batch1
+```
+
+Multiple runs for the same biological sample can be represented as multiple rows with the same `sample`, `condition`, `replicate`, `strandedness`, and `batch` values. The pipeline downloads each run with `prefetch`, converts it with `fasterq-dump`, compresses the FASTQs, auto-detects single-end versus paired-end output, and then continues through the same FASTQ path as normal samplesheet input.
+
+This is intentionally a minimal SRA mode. It expects run accessions such as `SRR...`, `ERR...`, or `DRR...`; it does not yet infer metadata automatically from `GSE` or `GSM` accessions.
+
+SRA mode downloads the archive with `prefetch` before converting it with `fasterq-dump`. The default maximum archive size is `100G`; this can be changed with `--sra_prefetch_max_size`.
 
 ## Running the pipeline
 
@@ -60,15 +97,33 @@ The typical command for running the pipeline is as follows:
 
 ```bash
 nextflow run Anton-Bch/isoform-nf-core \
-  --input ./samplesheet.csv \
-  --transcript_fasta ./transcripts.fa \
-  --genome_fasta ./genome.fa \
-  --gtf ./annotation.gtf \
-  --outdir ./results \
-  -profile docker
+    --input ./samplesheet.csv \
+    --contrasts ./contrasts.csv \
+    --transcript_fasta ./reference/transcripts.fa.gz \
+    --genome_fasta ./reference/genome.fa.gz \
+    --gtf ./reference/annotation.gtf.gz \
+    --outdir ./results \
+    -profile docker
 ```
 
-This will launch the pipeline with the `docker` configuration profile. See below for more information about profiles.
+For SRA input, replace `--input` with `--sra_manifest`:
+
+```bash
+nextflow run Anton-Bch/isoform-nf-core \
+    --sra_manifest ./sra_manifest.csv \
+    --contrasts ./contrasts.csv \
+    --transcript_fasta ./reference/transcripts.fa.gz \
+    --genome_fasta ./reference/genome.fa.gz \
+    --gtf ./reference/annotation.gtf.gz \
+    --outdir ./results \
+    -profile docker
+```
+
+This will launch the pipeline with the `docker` configuration profile. Docker is the recommended runtime for this pipeline and is the default runtime used by the test suite. See below for more information about profiles.
+
+The current reusable path uses the transcript FASTA to build a Salmon index, the optional genome FASTA as decoy sequence for a more specific Salmon index, and the GTF to map transcript IDs back to genes. The transcript IDs should match between the transcript FASTA and GTF.
+
+After Salmon quantification, the pipeline imports the transcript-level abundance estimates into `IsoformSwitchAnalyzeR`. If the dataset has two conditions with at least two samples per condition, the pipeline runs the DEXSeq-based isoform switch test. For very small smoke-test datasets, it still creates the `switchAnalyzeRlist` import object and records that statistical testing was skipped.
 
 Note that the pipeline will create the following files in your working directory:
 
@@ -96,10 +151,14 @@ with:
 
 ```yaml title="params.yaml"
 input: './samplesheet.csv'
+contrasts: './contrasts.csv'
+transcript_fasta: './reference/transcripts.fa.gz'
+genome_fasta: './reference/genome.fa.gz'
+gtf: './reference/annotation.gtf.gz'
+run_isar: true
+isar_dif_cutoff: 0.1
+isar_qvalue_cutoff: 0.05
 outdir: './results/'
-transcript_fasta: './transcripts.fa'
-genome_fasta: './genome.fa'
-gtf: './annotation.gtf'
 <...>
 ```
 

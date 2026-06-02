@@ -1,0 +1,101 @@
+nextflow_function {
+
+    name "Test Functions"
+    script "../main.nf"
+
+    tag "subworkflows"
+    tag "subworkflows_local"
+    tag "utils_nfcore_isoform_pipeline"
+    tag "subworkflows/utils_nfcore_isoform_pipeline"
+
+    test("sampleRowToInput preserves dataset metadata") {
+
+        function "sampleRowToInput"
+
+        when {
+            function {
+                """
+                input[0] = [ id: 'CONTROL_REP1', condition: 'control', replicate: 1, strandedness: 'auto', batch: 'batch1' ]
+                input[1] = file("${projectDir}/tests/fixtures/reads/control_rep1_L001_R1.fastq.gz", checkIfExists: true)
+                input[2] = file("${projectDir}/tests/fixtures/reads/control_rep1_L001_R2.fastq.gz", checkIfExists: true)
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert function.success },
+                { assert function.result[0] == 'CONTROL_REP1' },
+                { assert function.result[1].condition == 'control' },
+                { assert function.result[1].replicate == 1 },
+                { assert function.result[1].strandedness == 'auto' },
+                { assert function.result[1].batch == 'batch1' },
+                { assert function.result[1].single_end == false },
+                { assert function.result[2].size() == 2 }
+            )
+        }
+    }
+
+    test("validateInputSamplesheet rejects repeated samples with conflicting metadata") {
+
+        function "validateInputSamplesheet"
+
+        when {
+            function {
+                """
+                input[0] = [
+                    'CONTROL_REP1',
+                    [
+                        [ id: 'CONTROL_REP1', condition: 'control', replicate: 1, strandedness: 'auto', batch: 'batch1', single_end: false ],
+                        [ id: 'CONTROL_REP1', condition: 'treated', replicate: 1, strandedness: 'auto', batch: 'batch1', single_end: false ]
+                    ],
+                    [
+                        [
+                            file("${projectDir}/tests/fixtures/reads/control_rep1_L001_R1.fastq.gz", checkIfExists: true),
+                            file("${projectDir}/tests/fixtures/reads/control_rep1_L001_R2.fastq.gz", checkIfExists: true)
+                        ],
+                        [
+                            file("${projectDir}/tests/fixtures/reads/control_rep1_L002_R1.fastq.gz", checkIfExists: true),
+                            file("${projectDir}/tests/fixtures/reads/control_rep1_L002_R2.fastq.gz", checkIfExists: true)
+                        ]
+                    ]
+                ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert function.failed },
+                { assert function.stdout.any { it.contains('condition') } || function.stderr.any { it.contains('condition') } }
+            )
+        }
+    }
+
+    test("validateContrasts rejects conditions absent from samplesheet") {
+
+        function "validateContrasts"
+
+        when {
+            function {
+                """
+                input[0] = [
+                    [[ id: 'CONTROL_REP1', condition: 'control', replicate: 1, strandedness: 'auto' ],
+                     file("${projectDir}/tests/fixtures/reads/control_rep1_L001_R1.fastq.gz", checkIfExists: true),
+                     file("${projectDir}/tests/fixtures/reads/control_rep1_L001_R2.fastq.gz", checkIfExists: true)]
+                ]
+                input[1] = [
+                    [ id: 'missing_vs_control', 'case': 'missing', control: 'control' ]
+                ]
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert function.failed },
+                { assert function.stdout.any { it.contains('missing') } || function.stderr.any { it.contains('missing') } }
+            )
+        }
+    }
+}

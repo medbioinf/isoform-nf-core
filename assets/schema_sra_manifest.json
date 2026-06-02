@@ -2,7 +2,7 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "https://raw.githubusercontent.com/Anton-Bch/isoform-nf-core/main/assets/schema_sra_manifest.json",
     "title": "Anton-Bch/isoform-nf-core pipeline - params.sra_manifest schema",
-    "description": "Schema for the file provided with params.sra_manifest",
+    "description": "Schema for the optional SRA manifest provided with params.sra_manifest",
     "type": "array",
     "items": {
         "type": "object",
@@ -16,27 +16,33 @@
             "condition": {
                 "type": "string",
                 "pattern": "^\\S+$",
-                "errorMessage": "Condition must be provided and cannot be empty",
+                "errorMessage": "Condition must be provided and cannot contain spaces",
                 "meta": ["condition"]
             },
-            "sra_run": {
+            "replicate": {
+                "type": "integer",
+                "minimum": 1,
+                "errorMessage": "Replicate must be provided as a positive integer",
+                "meta": ["replicate"]
+            },
+            "run_accession": {
                 "type": "string",
-                "pattern": "^SRR[0-9]+$",
-                "errorMessage": "SRA run must be provided and should look like SRR1234567",
-                "meta": ["sra_run"]
+                "pattern": "^[SED]RR[0-9]+$",
+                "errorMessage": "Run accession must be an SRA/ENA/DRA run accession such as SRR123456"
             },
             "strandedness": {
                 "type": "string",
-                "errorMessage": "Strandedness must be one of 'auto', 'forward', 'reverse' or 'unstranded'",
-                "enum": ["auto", "forward", "reverse", "unstranded"],
+                "enum": ["forward", "reverse", "unstranded", "auto"],
+                "errorMessage": "Strandedness must be provided and be one of 'auto', 'forward', 'reverse' or 'unstranded'",
                 "meta": ["strandedness"]
             },
-            "patient_id": {
+            "batch": {
                 "type": "string",
-                "pattern": "^\\S+$",
-                "meta": ["patient_id"]
+                "pattern": "^\\S*$",
+                "errorMessage": "Batch cannot contain spaces",
+                "meta": ["batch"]
             }
         },
-        "required": ["sample", "condition", "sra_run", "strandedness"]
+        "required": ["sample", "condition", "replicate", "run_accession", "strandedness"]
     }
 }

@@ -1,0 +1,31 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/Anton-Bch/isoform-nf-core/main/assets/schema_contrasts.json",
+    "title": "Anton-Bch/isoform-nf-core pipeline - params.contrasts schema",
+    "description": "Schema for the optional contrast file provided with params.contrasts",
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "contrast": {
+                "type": "string",
+                "pattern": "^\\S+$",
+                "errorMessage": "Contrast name must be provided and cannot contain spaces",
+                "meta": ["id"]
+            },
+            "case": {
+                "type": "string",
+                "pattern": "^\\S+$",
+                "errorMessage": "Case condition must be provided and cannot contain spaces",
+                "meta": ["case"]
+            },
+            "control": {
+                "type": "string",
+                "pattern": "^\\S+$",
+                "errorMessage": "Control condition must be provided and cannot contain spaces",
+                "meta": ["control"]
+            }
+        },
+        "required": ["contrast", "case", "control"]
+    }
+}

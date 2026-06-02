@@ -16,8 +16,14 @@
             "condition": {
                 "type": "string",
                 "pattern": "^\\S+$",
-                "errorMessage": "Condition must be provided and cannot be empty",
+                "errorMessage": "Condition must be provided and cannot contain spaces",
                 "meta": ["condition"]
+            },
+            "replicate": {
+                "type": "integer",
+                "minimum": 1,
+                "errorMessage": "Replicate must be provided as a positive integer",
+                "meta": ["replicate"]
             },
             "fastq_1": {
                 "type": "string",
@@ -35,16 +41,17 @@
             },
             "strandedness": {
                 "type": "string",
-                "errorMessage": "Strandedness must be one of 'auto', 'forward', 'reverse' or 'unstranded'",
-                "enum": ["auto", "forward", "reverse", "unstranded"],
+                "enum": ["forward", "reverse", "unstranded", "auto"],
+                "errorMessage": "Strandedness must be provided and be one of 'auto', 'forward', 'reverse' or 'unstranded'",
                 "meta": ["strandedness"]
             },
-            "patient_id": {
+            "batch": {
                 "type": "string",
-                "pattern": "^\\S+$",
-                "meta": ["patient_id"]
+                "pattern": "^\\S*$",
+                "errorMessage": "Batch cannot contain spaces",
+                "meta": ["batch"]
             }
         },
-        "required": ["sample", "condition", "fastq_1", "strandedness"]
+        "required": ["sample", "condition", "replicate", "fastq_1", "strandedness"]
     }
 }

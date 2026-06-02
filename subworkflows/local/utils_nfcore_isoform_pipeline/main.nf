@@ -33,6 +33,7 @@ workflow PIPELINE_INITIALISATION {
     nextflow_cli_args //   array: List of positional nextflow CLI args
     outdir            //  string: The output directory where the results will be saved
     input             //  string: Path to input samplesheet
+    sra_manifest      //  string: Path to SRA manifest
     help              // boolean: Display help message and exit
     help_full         // boolean: Show the full help message
     show_hidden       // boolean: Show hidden parameters in the help message
@@ -54,7 +55,7 @@ workflow PIPELINE_INITIALISATION {
     //
     // Validate parameters and generate parameter summary to stdout
     //
-    command = "nextflow run ${workflow.manifest.name} -profile <docker/singularity/.../institute> --input samplesheet.csv --transcript_fasta transcripts.fa --genome_fasta genome.fa --gtf annotation.gtf --outdir <OUTDIR>"
+    command = "nextflow run ${workflow.manifest.name} -profile <docker/singularity/.../institute> --input samplesheet.csv --outdir <OUTDIR>"
 
     UTILS_NFSCHEMA_PLUGIN (
         workflow,
@@ -84,15 +85,16 @@ workflow PIPELINE_INITIALISATION {
     // Create channel from input file provided through params.input
     //
 
+    input_rows = params.input ? samplesheetToList(params.input, "${projectDir}/assets/schema_input.json") : []
+    sra_rows = params.sra_manifest ? samplesheetToList(params.sra_manifest, "${projectDir}/assets/schema_sra_manifest.json") : []
+    contrast_rows = params.contrasts ? samplesheetToList(params.contrasts, "${projectDir}/assets/schema_contrasts.json") : []
+    validateContrasts(input_rows ?: sra_rows, contrast_rows)
+
     channel
-        .fromList(samplesheetToList(params.input, "${projectDir}/assets/schema_input.json"))
+        .fromList(input_rows)
         .map {
             meta, fastq_1, fastq_2 ->
-                if (!fastq_2) {
-                    return [ meta.id, meta + [ single_end:true ], [ fastq_1 ] ]
-                } else {
-                    return [ meta.id, meta + [ single_end:false ], [ fastq_1, fastq_2 ] ]
-                }
+                sampleRowToInput(meta, fastq_1, fastq_2)
         }
         .groupTuple()
         .map { samplesheet ->
@@ -104,9 +106,29 @@ workflow PIPELINE_INITIALISATION {
         }
         .set { ch_samplesheet }
 
+    channel
+        .fromList(sra_rows)
+        .map {
+            meta, run_accession ->
+                sraRowToInput(meta, run_accession)
+        }
+        .groupTuple()
+        .map { manifest ->
+            validateInputSamplesheet(manifest)
+        }
+        .flatMap {
+            meta, run_accessions ->
+                run_accessions.collect { run_accession ->
+                    [ meta + [ sra_run: run_accession ], run_accession ]
+                }
+        }
+        .set { ch_sra_manifest }
+
     emit:
-    samplesheet = ch_samplesheet
-    versions    = ch_versions
+    samplesheet   = ch_samplesheet
+    sra_manifest  = ch_sra_manifest
+    metadata_file = channel.value(file(params.input ?: params.sra_manifest, checkIfExists: true))
+    versions      = ch_versions
 }
 
 /*
@@ -166,24 +188,46 @@ workflow PIPELINE_COMPLETION {
 // Check and validate pipeline parameters
 //
 def validateInputParameters() {
-    if ((params.input && params.sra_manifest) || (!params.input && !params.sra_manifest)) {
-        error("Please provide exactly one of `--input` or `--sra_manifest`.")
+    genomeExistsError()
+    if (params.input && params.sra_manifest) {
+        error("Please provide either --input or --sra_manifest, not both")
     }
+    if (!params.input && !params.sra_manifest) {
+        error("Please provide either --input FASTQ samplesheet or --sra_manifest")
+    }
+    if (!params.transcript_fasta) {
+        error("Please provide --transcript_fasta for Salmon indexing and downstream isoform analysis")
+    }
+    if (!params.gtf) {
+        error("Please provide --gtf so Salmon can produce gene-level mappings and ISAR can map transcripts to genes")
+    }
+}
 
-    ['transcript_fasta', 'genome_fasta', 'gtf'].each { key ->
-        if (!params[key]) {
-            error("Missing required parameter: `--${key}`")
-        }
+def sraRowToInput(meta, run_accession) {
+    if (!meta.id) {
+        error("Please check SRA manifest -> Sample name must be provided")
     }
-
-    if (params.sra_manifest) {
-        error("`--sra_manifest` is part of the V1 interface, but the SRA workflow branch is not implemented yet. Please use `--input` until the SRA branch is added.")
+    if (!run_accession) {
+        error("Please check SRA manifest -> run_accession must be provided for sample ${meta.id}")
     }
+    return [ meta.id, meta + [ single_end:false ], run_accession ]
 }
 
 //
 // Validate channels from input samplesheet
 //
+def sampleRowToInput(meta, fastq_1, fastq_2) {
+    if (!meta.id) {
+        error("Please check input samplesheet -> Sample name must be provided")
+    }
+
+    if (!fastq_2) {
+        return [ meta.id, meta + [ single_end:true ], [ fastq_1 ] ]
+    } else {
+        return [ meta.id, meta + [ single_end:false ], [ fastq_1, fastq_2 ] ]
+    }
+}
+
 def validateInputSamplesheet(input) {
     def (metas, fastqs) = input[1..2]
 
@@ -193,23 +237,79 @@ def validateInputSamplesheet(input) {
         error("Please check input samplesheet -> Multiple runs of a sample must be of the same datatype i.e. single-end or paired-end: ${metas[0].id}")
     }
 
-    def condition_ok = metas.collect { meta -> meta.condition }.unique().size == 1
-    if (!condition_ok) {
-        error("Please check input samplesheet -> Multiple runs of a sample must have the same condition: ${metas[0].id}")
-    }
+    // Check that multiple runs of the same sample have identical sample-level metadata.
+    ['condition', 'replicate', 'strandedness', 'batch'].each { field ->
+        def values = metas.collect { meta ->
+            meta.containsKey(field) ? meta[field] : null
+        }.findAll { value ->
+            value != null && !(value instanceof List && value.isEmpty()) && value.toString() != ''
+        }.unique()
 
-    def strandedness_ok = metas.collect { meta -> meta.strandedness }.unique().size == 1
-    if (!strandedness_ok) {
-        error("Please check input samplesheet -> Multiple runs of a sample must have the same strandedness: ${metas[0].id}")
-    }
-
-    def patient_id_ok = metas.collect { meta -> meta.patient_id ?: '' }.unique().size == 1
-    if (!patient_id_ok) {
-        error("Please check input samplesheet -> Multiple runs of a sample must have the same patient_id: ${metas[0].id}")
+        if (values.size() > 1) {
+            error("Please check input samplesheet -> Multiple runs of a sample must have the same '${field}' value: ${metas[0].id}")
+        }
     }
 
     return [ metas[0], fastqs ]
 }
+
+def validateContrasts(sample_rows, contrast_rows) {
+    if (!contrast_rows) {
+        return
+    }
+
+    def sample_conditions = sample_rows.collect { row ->
+        getSamplesheetRowMeta(row).condition
+    }.findAll { condition ->
+        condition != null && condition.toString() != ''
+    }.unique()
+
+    contrast_rows.each { row ->
+        def contrast = getSamplesheetRowMeta(row)
+        ['case', 'control'].each { field ->
+            def condition = contrast[field]
+            if (!sample_conditions.contains(condition)) {
+                error("Please check contrast file -> Contrast '${contrast.id}' ${field} condition '${condition}' is not present in the samplesheet condition column")
+            }
+        }
+    }
+}
+
+def getSamplesheetRowMeta(row) {
+    if (row instanceof Map) {
+        return row
+    }
+    if (row instanceof List && row[0] instanceof Map) {
+        return row[0]
+    }
+    error("Please check input files -> Could not extract row metadata from samplesheet")
+}
+//
+// Get attribute from genome config file e.g. fasta
+//
+def getGenomeAttribute(attribute) {
+    if (params.genomes && params.genome && params.genomes.containsKey(params.genome)) {
+        if (params.genomes[ params.genome ].containsKey(attribute)) {
+            return params.genomes[ params.genome ][ attribute ]
+        }
+    }
+    return null
+}
+
+//
+// Exit pipeline if incorrect --genome key provided
+//
+def genomeExistsError() {
+    if (params.genomes && params.genome && !params.genomes.containsKey(params.genome)) {
+        def error_string = "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n" +
+            "  Genome '${params.genome}' not found in any config files provided to the pipeline.\n" +
+            "  Currently, the available genome keys are:\n" +
+            "  ${params.genomes.keySet().join(", ")}\n" +
+            "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+        error(error_string)
+    }
+}
+//
 // Generate methods description for MultiQC
 //
 def toolCitationText() {
@@ -219,6 +319,8 @@ def toolCitationText() {
     def citation_text = [
             "Tools used in the workflow included:",
             "FastQC (Andrews 2010),",
+            "fastp (Chen et al. 2018),",
+            "Salmon (Patro et al. 2017),",
             "MultiQC (Ewels et al. 2016)",
             "."
         ].join(' ').trim()
@@ -232,6 +334,8 @@ def toolBibliographyText() {
     // Uncomment function in methodsDescriptionText to render in MultiQC report
     def reference_text = [
             "<li>Andrews S, (2010) FastQC, URL: https://www.bioinformatics.babraham.ac.uk/projects/fastqc/).</li>",
+            "<li>Chen S, Zhou Y, Chen Y, Gu J. (2018) fastp: an ultra-fast all-in-one FASTQ preprocessor. Bioinformatics. doi: 10.1093/bioinformatics/bty560.</li>",
+            "<li>Patro R, Duggal G, Love MI, Irizarry RA, Kingsford C. (2017) Salmon provides fast and bias-aware quantification of transcript expression. Nat Methods. doi: 10.1038/nmeth.4197.</li>",
             "<li>Ewels, P., Magnusson, M., Lundin, S., & Käller, M. (2016). MultiQC: summarize analysis results for multiple tools and samples in a single report. Bioinformatics , 32(19), 3047–3048. doi: /10.1093/bioinformatics/btw354</li>"
         ].join(' ').trim()
 

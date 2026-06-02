@@ -1,4 +1,3 @@
-sample,condition,fastq_1,fastq_2,strandedness,patient_id
-SAMPLE_NORMAL,normal,/path/to/fastq/files/sample_normal_L001_R1.fastq.gz,/path/to/fastq/files/sample_normal_L001_R2.fastq.gz,auto,patient01
-SAMPLE_NORMAL,normal,/path/to/fastq/files/sample_normal_L002_R1.fastq.gz,/path/to/fastq/files/sample_normal_L002_R2.fastq.gz,auto,patient01
-SAMPLE_TUMOR,tumor,/path/to/fastq/files/sample_tumor.fastq.gz,,auto,patient02
+sample,condition,replicate,fastq_1,fastq_2,strandedness,batch
+CONTROL_REP1,control,1,/path/to/fastq/files/CONTROL_REP1_R1.fastq.gz,/path/to/fastq/files/CONTROL_REP1_R2.fastq.gz,auto,batch1
+TREATED_REP1,treated,1,/path/to/fastq/files/TREATED_REP1_R1.fastq.gz,/path/to/fastq/files/TREATED_REP1_R2.fastq.gz,auto,batch1

@@ -9,4 +9,17 @@ multiqc/multiqc_data/llms-full.txt
 multiqc/multiqc_plots/{svg,pdf,png}/*.{svg,pdf,png}
 multiqc/multiqc_report.html
 fastqc/*_fastqc.{html,zip}
+fastp/*.html
+fastp/*.json
+fastp/*.log
+fastp/*.fastq.gz
+cat/*.fastq.gz
+isar/isar_analysis/*.rds
+isar/isar_analysis/sessionInfo.txt
+salmon/salmon/*
+salmon/*/aux_info/*
+salmon/*/cmd_info.json
+salmon/*/lib_format_counts.json
+salmon/*_meta_info.json
+salmon/*_lib_format_counts.json
 pipeline_info/*.{html,json,txt,yml}
