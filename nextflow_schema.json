@@ -1,7 +1,7 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://raw.githubusercontent.com/anton/isoform/master/nextflow_schema.json",
-    "title": "anton/isoform pipeline parameters",
+    "$id": "https://raw.githubusercontent.com/Anton-Bch/isoform-nf-core/main/nextflow_schema.json",
+    "title": "Anton-Bch/isoform-nf-core pipeline parameters",
     "description": "General-purpose Nextflow pipeline for isoform switch analysis",
     "type": "object",
     "$defs": {
@@ -10,7 +10,7 @@
             "type": "object",
             "fa_icon": "fas fa-terminal",
             "description": "Define where the pipeline should find input data and save output data.",
-            "required": ["input", "outdir"],
+            "required": ["outdir"],
             "properties": {
                 "input": {
                     "type": "string",
@@ -22,6 +22,24 @@
                     "description": "Path to comma-separated file containing information about the samples in the experiment.",
                     "help_text": "You will need to create a samplesheet with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. Required columns are `sample`, `condition`, `replicate`, `fastq_1`, and `strandedness`; `fastq_2` and `batch` are optional.",
                     "fa_icon": "fas fa-file-csv"
+                },
+                "sra_manifest": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "schema": "assets/schema_sra_manifest.json",
+                    "mimetype": "text/csv",
+                    "pattern": "^\\S+\\.csv$",
+                    "description": "Optional CSV file containing SRA run accessions and sample metadata.",
+                    "help_text": "Use this instead of `--input` to download public SRA runs before running the normal FASTQ-based pipeline. Required columns are `sample`, `condition`, `replicate`, `run_accession`, and `strandedness`; `batch` is optional.",
+                    "fa_icon": "fas fa-cloud-download-alt"
+                },
+                "sra_prefetch_max_size": {
+                    "type": "string",
+                    "default": "100G",
+                    "description": "Maximum SRA archive size accepted by prefetch.",
+                    "help_text": "Passed to `prefetch --max-size` for SRA mode. Increase this for large public runs, or lower it to fail early during smoke tests.",
+                    "fa_icon": "fas fa-database"
                 },
                 "contrasts": {
                     "type": "string",
@@ -59,6 +77,7 @@
             "type": "object",
             "fa_icon": "fas fa-dna",
             "description": "Reference genome related files and options required for the workflow.",
+            "required": ["transcript_fasta", "gtf"],
             "properties": {
                 "genome": {
                     "type": "string",
@@ -66,15 +85,41 @@
                     "fa_icon": "fas fa-book",
                     "help_text": "If using a reference genome configured in the pipeline using iGenomes, use this parameter to give the ID for the reference. This is then used to build the full paths for all required reference genome files e.g. `--genome GRCh38`. \n\nSee the [nf-core website docs](https://nf-co.re/usage/reference_genomes) for more details."
                 },
-                "fasta": {
+                "transcript_fasta": {
                     "type": "string",
                     "format": "file-path",
                     "exists": true,
                     "mimetype": "text/plain",
                     "pattern": "^\\S+\\.fn?a(sta)?(\\.gz)?$",
-                    "description": "Path to FASTA genome file.",
-                    "help_text": "This parameter is *mandatory* if `--genome` is not specified. If you don't have a BWA index available this will be generated for you automatically. Combine with `--save_reference` to save BWA index for future runs.",
+                    "description": "Path to transcript FASTA file.",
+                    "help_text": "Transcript sequences used to build the Salmon index. The transcript IDs should match the transcript IDs in the GTF annotation.",
                     "fa_icon": "far fa-file-code"
+                },
+                "genome_fasta": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "mimetype": "text/plain",
+                    "pattern": "^\\S+\\.fn?a(sta)?(\\.gz)?$",
+                    "description": "Optional path to genome FASTA file.",
+                    "help_text": "If provided, Salmon builds a decoy-aware gentrome index using the transcript FASTA plus genome sequences as decoys. This usually improves mapping specificity.",
+                    "fa_icon": "far fa-file-code"
+                },
+                "gtf": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "mimetype": "text/plain",
+                    "pattern": "^\\S+\\.gtf(\\.gz)?$",
+                    "description": "Path to transcript annotation GTF file.",
+                    "help_text": "Annotation used by Salmon for transcript-to-gene mapping and later by IsoformSwitchAnalyzeR to connect transcript abundance to gene/isoform structure.",
+                    "fa_icon": "far fa-file-code"
+                },
+                "salmon_lib_type": {
+                    "type": "string",
+                    "description": "Optional explicit Salmon library type.",
+                    "help_text": "Leave unset to derive Salmon library type from samplesheet strandedness and single-end/paired-end status. Advanced users can set a Salmon libType such as A, IU, ISR, ISF, U, SR, or SF.",
+                    "fa_icon": "fas fa-fish"
                 },
                 "igenomes_ignore": {
                     "type": "boolean",
@@ -90,6 +135,36 @@
                     "fa_icon": "fas fa-ban",
                     "hidden": true,
                     "default": "s3://ngi-igenomes/igenomes/"
+                }
+            }
+        },
+        "isoformswitchanalyzer_options": {
+            "title": "IsoformSwitchAnalyzeR options",
+            "type": "object",
+            "fa_icon": "fas fa-chart-line",
+            "description": "Options controlling the downstream isoform switch analysis.",
+            "properties": {
+                "run_isar": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Run IsoformSwitchAnalyzeR after Salmon quantification.",
+                    "help_text": "Disable this for debugging or for Salmon-only preprocessing runs."
+                },
+                "isar_dif_cutoff": {
+                    "type": "number",
+                    "default": 0.1,
+                    "description": "Minimum absolute isoform fraction difference used by IsoformSwitchAnalyzeR.",
+                    "help_text": "A value of 0.1 means an isoform must change by at least 10 percentage points in usage to be considered as a switch candidate."
+                },
+                "isar_qvalue_cutoff": {
+                    "type": "number",
+                    "default": 0.05,
+                    "description": "Multiple-testing corrected q-value cutoff for isoform switch testing."
+                },
+                "isar_top_n": {
+                    "type": "integer",
+                    "default": 10,
+                    "description": "Number of top switch candidates to export when a statistical switch test is run."
                 }
             }
         },
@@ -257,6 +332,9 @@
         },
         {
             "$ref": "#/$defs/reference_genome_options"
+        },
+        {
+            "$ref": "#/$defs/isoformswitchanalyzer_options"
         },
         {
             "$ref": "#/$defs/institutional_config_options"

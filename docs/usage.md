@@ -1,4 +1,4 @@
-# anton/isoform: Usage
+# Anton-Bch/isoform-nf-core: Usage
 
 > _Documentation of pipeline parameters is generated automatically from the pipeline schema and can no longer be found in markdown files._
 
@@ -69,15 +69,61 @@ contrast,case,control
 treated_vs_control,treatment,control
 ```
 
+### Minimal SRA manifest input
+
+As an alternative to `--input`, the pipeline can start from public SRA run accessions:
+
+```bash
+--sra_manifest '[path to SRA manifest file]'
+```
+
+The minimal SRA manifest contains sample metadata plus one run accession per row:
+
+```csv title="sra_manifest.csv"
+sample,condition,replicate,run_accession,strandedness,batch
+CONTROL_REP1,control,1,SRR000001,auto,batch1
+TREATMENT_REP1,treatment,1,SRR000002,auto,batch1
+```
+
+Multiple runs for the same biological sample can be represented as multiple rows with the same `sample`, `condition`, `replicate`, `strandedness`, and `batch` values. The pipeline downloads each run with `prefetch`, converts it with `fasterq-dump`, compresses the FASTQs, auto-detects single-end versus paired-end output, and then continues through the same FASTQ path as normal samplesheet input.
+
+This is intentionally a minimal SRA mode. It expects run accessions such as `SRR...`, `ERR...`, or `DRR...`; it does not yet infer metadata automatically from `GSE` or `GSM` accessions.
+
+SRA mode downloads the archive with `prefetch` before converting it with `fasterq-dump`. The default maximum archive size is `100G`; this can be changed with `--sra_prefetch_max_size`.
+
 ## Running the pipeline
 
 The typical command for running the pipeline is as follows:
 
 ```bash
-nextflow run anton/isoform --input ./samplesheet.csv --contrasts ./contrasts.csv --outdir ./results --genome GRCh37 -profile docker
+nextflow run Anton-Bch/isoform-nf-core \
+    --input ./samplesheet.csv \
+    --contrasts ./contrasts.csv \
+    --transcript_fasta ./reference/transcripts.fa.gz \
+    --genome_fasta ./reference/genome.fa.gz \
+    --gtf ./reference/annotation.gtf.gz \
+    --outdir ./results \
+    -profile docker
+```
+
+For SRA input, replace `--input` with `--sra_manifest`:
+
+```bash
+nextflow run Anton-Bch/isoform-nf-core \
+    --sra_manifest ./sra_manifest.csv \
+    --contrasts ./contrasts.csv \
+    --transcript_fasta ./reference/transcripts.fa.gz \
+    --genome_fasta ./reference/genome.fa.gz \
+    --gtf ./reference/annotation.gtf.gz \
+    --outdir ./results \
+    -profile docker
 ```
 
 This will launch the pipeline with the `docker` configuration profile. Docker is the recommended runtime for this pipeline and is the default runtime used by the test suite. See below for more information about profiles.
+
+The current reusable path uses the transcript FASTA to build a Salmon index, the optional genome FASTA as decoy sequence for a more specific Salmon index, and the GTF to map transcript IDs back to genes. The transcript IDs should match between the transcript FASTA and GTF.
+
+After Salmon quantification, the pipeline imports the transcript-level abundance estimates into `IsoformSwitchAnalyzeR`. If the dataset has two conditions with at least two samples per condition, the pipeline runs the DEXSeq-based isoform switch test. For very small smoke-test datasets, it still creates the `switchAnalyzeRlist` import object and records that statistical testing was skipped.
 
 Note that the pipeline will create the following files in your working directory:
 
@@ -98,7 +144,7 @@ Pipeline settings can be provided in a `yaml` or `json` file via `-params-file <
 The above pipeline run specified with a params file in yaml format:
 
 ```bash
-nextflow run anton/isoform -profile docker -params-file params.yaml
+nextflow run Anton-Bch/isoform-nf-core -profile docker -params-file params.yaml
 ```
 
 with:
@@ -106,8 +152,13 @@ with:
 ```yaml title="params.yaml"
 input: './samplesheet.csv'
 contrasts: './contrasts.csv'
+transcript_fasta: './reference/transcripts.fa.gz'
+genome_fasta: './reference/genome.fa.gz'
+gtf: './reference/annotation.gtf.gz'
+run_isar: true
+isar_dif_cutoff: 0.1
+isar_qvalue_cutoff: 0.05
 outdir: './results/'
-genome: 'GRCh37'
 <...>
 ```
 
@@ -118,14 +169,14 @@ You can also generate such `YAML`/`JSON` files via [nf-core/launch](https://nf-c
 When you run the above command, Nextflow automatically pulls the pipeline code from GitHub and stores it as a cached version. When running the pipeline after this, it will always use the cached version if available - even if the pipeline has been updated since. To make sure that you're running the latest version of the pipeline, make sure that you regularly update the cached version of the pipeline:
 
 ```bash
-nextflow pull anton/isoform
+nextflow pull Anton-Bch/isoform-nf-core
 ```
 
 ### Reproducibility
 
 It is a good idea to specify the pipeline version when running the pipeline on your data. This ensures that a specific version of the pipeline code and software are used when you run your pipeline. If you keep using the same tag, you'll be running the same version of the pipeline, even if there have been changes to the code since.
 
-First, go to the [anton/isoform releases page](https://github.com/anton/isoform/releases) and find the latest pipeline version - numeric only (eg. `1.3.1`). Then specify this when running the pipeline with `-r` (one hyphen) - eg. `-r 1.3.1`. Of course, you can switch to another version by changing the number after the `-r` flag.
+First, go to the [Anton-Bch/isoform-nf-core releases page](https://github.com/Anton-Bch/isoform-nf-core/releases) and find the latest pipeline version - numeric only (eg. `1.3.1`). Then specify this when running the pipeline with `-r` (one hyphen) - eg. `-r 1.3.1`. Of course, you can switch to another version by changing the number after the `-r` flag.
 
 This version number will be logged in reports when you run the pipeline, so that you'll know what you used when you look back in the future. For example, at the bottom of the MultiQC reports.
 

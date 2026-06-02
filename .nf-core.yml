@@ -28,10 +28,10 @@ lint:
     - .github/workflows/awsfulltest.yml
 
 template:
-  org: anton
-  name: isoform
+  org: Anton-Bch
+  name: isoform-nf-core
   description: General-purpose Nextflow pipeline for isoform switch analysis
-  author: Anton
+  author: Anton Buch and Tobias Polley
   version: 1.0dev
   force: true
   outdir: /home/anton/uni/isoform-nf-core

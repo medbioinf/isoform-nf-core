@@ -1,0 +1,14 @@
+chrTest	test	gene	1	116	.	+	.	gene_id "GENE1"; gene_name "GENE1";
+chrTest	test	transcript	1	53	.	+	.	gene_id "GENE1"; transcript_id "TX1";
+chrTest	test	exon	1	53	.	+	.	gene_id "GENE1"; transcript_id "TX1"; exon_number "1";
+chrTest	test	CDS	1	51	.	+	0	gene_id "GENE1"; transcript_id "TX1"; exon_number "1";
+chrTest	test	transcript	64	116	.	+	.	gene_id "GENE1"; transcript_id "TX2";
+chrTest	test	exon	64	116	.	+	.	gene_id "GENE1"; transcript_id "TX2"; exon_number "1";
+chrTest	test	CDS	64	114	.	+	0	gene_id "GENE1"; transcript_id "TX2"; exon_number "1";
+chrTest	test	gene	127	242	.	+	.	gene_id "GENE2"; gene_name "GENE2";
+chrTest	test	transcript	127	179	.	+	.	gene_id "GENE2"; transcript_id "TX3";
+chrTest	test	exon	127	179	.	+	.	gene_id "GENE2"; transcript_id "TX3"; exon_number "1";
+chrTest	test	CDS	127	177	.	+	0	gene_id "GENE2"; transcript_id "TX3"; exon_number "1";
+chrTest	test	transcript	190	242	.	+	.	gene_id "GENE2"; transcript_id "TX4";
+chrTest	test	exon	190	242	.	+	.	gene_id "GENE2"; transcript_id "TX4"; exon_number "1";
+chrTest	test	CDS	190	240	.	+	0	gene_id "GENE2"; transcript_id "TX4"; exon_number "1";

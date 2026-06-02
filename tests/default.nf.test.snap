@@ -6,7 +6,7 @@
                     "fastqc": "0.12.1"
                 },
                 "Workflow": {
-                    "anton/isoform": "v1.0dev"
+                    "Anton-Bch/isoform-nf-core": "v1.0dev"
                 }
             },
             [

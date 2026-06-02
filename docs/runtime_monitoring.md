@@ -3,7 +3,7 @@
 This pipeline is intended to run with Docker on the study project VM. Use the Docker profile for normal runs:
 
 ```bash
-nextflow run anton/isoform \
+nextflow run Anton-Bch/isoform-nf-core \
     -profile docker \
     --input samplesheet.csv \
     --outdir results

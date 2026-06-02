@@ -1,7 +1,7 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://raw.githubusercontent.com/anton/isoform/master/assets/schema_input.json",
-    "title": "anton/isoform pipeline - params.input schema",
+    "$id": "https://raw.githubusercontent.com/Anton-Bch/isoform-nf-core/main/assets/schema_input.json",
+    "title": "Anton-Bch/isoform-nf-core pipeline - params.input schema",
     "description": "Schema for the file provided with params.input",
     "type": "array",
     "items": {

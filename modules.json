@@ -1,6 +1,6 @@
 {
-    "name": "anton/isoform",
-    "homePage": "https://github.com/anton/isoform",
+    "name": "Anton-Bch/isoform-nf-core",
+    "homePage": "https://github.com/Anton-Bch/isoform-nf-core",
     "repos": {
         "https://github.com/nf-core/modules.git": {
             "modules": {
@@ -10,9 +10,29 @@
                         "git_sha": "41dfa3f7c0ffabb96a6a813fe321c6d1cc5b6e46",
                         "installed_by": ["modules"]
                     },
+                    "cat/fastq": {
+                        "branch": "master",
+                        "git_sha": "1d26feac934b15ae5c4609bb059e19ea7ca86896",
+                        "installed_by": ["modules"]
+                    },
+                    "fastp": {
+                        "branch": "master",
+                        "git_sha": "1d26feac934b15ae5c4609bb059e19ea7ca86896",
+                        "installed_by": ["modules"]
+                    },
                     "multiqc": {
                         "branch": "master",
                         "git_sha": "af27af1be706e6a2bb8fe454175b0cdf77f47b49",
+                        "installed_by": ["modules"]
+                    },
+                    "salmon/index": {
+                        "branch": "master",
+                        "git_sha": "1d26feac934b15ae5c4609bb059e19ea7ca86896",
+                        "installed_by": ["modules"]
+                    },
+                    "salmon/quant": {
+                        "branch": "master",
+                        "git_sha": "1d26feac934b15ae5c4609bb059e19ea7ca86896",
                         "installed_by": ["modules"]
                     }
                 }

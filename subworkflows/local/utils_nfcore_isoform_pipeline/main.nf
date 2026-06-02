@@ -1,5 +1,5 @@
 //
-// Subworkflow with functionality specific to the anton/isoform pipeline
+// Subworkflow with functionality specific to the Anton-Bch/isoform-nf-core pipeline
 //
 
 /*
@@ -33,6 +33,7 @@ workflow PIPELINE_INITIALISATION {
     nextflow_cli_args //   array: List of positional nextflow CLI args
     outdir            //  string: The output directory where the results will be saved
     input             //  string: Path to input samplesheet
+    sra_manifest      //  string: Path to SRA manifest
     help              // boolean: Display help message and exit
     help_full         // boolean: Show the full help message
     show_hidden       // boolean: Show hidden parameters in the help message
@@ -84,9 +85,10 @@ workflow PIPELINE_INITIALISATION {
     // Create channel from input file provided through params.input
     //
 
-    input_rows = samplesheetToList(params.input, "${projectDir}/assets/schema_input.json")
+    input_rows = params.input ? samplesheetToList(params.input, "${projectDir}/assets/schema_input.json") : []
+    sra_rows = params.sra_manifest ? samplesheetToList(params.sra_manifest, "${projectDir}/assets/schema_sra_manifest.json") : []
     contrast_rows = params.contrasts ? samplesheetToList(params.contrasts, "${projectDir}/assets/schema_contrasts.json") : []
-    validateContrasts(input_rows, contrast_rows)
+    validateContrasts(input_rows ?: sra_rows, contrast_rows)
 
     channel
         .fromList(input_rows)
@@ -104,9 +106,29 @@ workflow PIPELINE_INITIALISATION {
         }
         .set { ch_samplesheet }
 
+    channel
+        .fromList(sra_rows)
+        .map {
+            meta, run_accession ->
+                sraRowToInput(meta, run_accession)
+        }
+        .groupTuple()
+        .map { manifest ->
+            validateInputSamplesheet(manifest)
+        }
+        .flatMap {
+            meta, run_accessions ->
+                run_accessions.collect { run_accession ->
+                    [ meta + [ sra_run: run_accession ], run_accession ]
+                }
+        }
+        .set { ch_sra_manifest }
+
     emit:
-    samplesheet = ch_samplesheet
-    versions    = ch_versions
+    samplesheet   = ch_samplesheet
+    sra_manifest  = ch_sra_manifest
+    metadata_file = channel.value(file(params.input ?: params.sra_manifest, checkIfExists: true))
+    versions      = ch_versions
 }
 
 /*
@@ -167,6 +189,28 @@ workflow PIPELINE_COMPLETION {
 //
 def validateInputParameters() {
     genomeExistsError()
+    if (params.input && params.sra_manifest) {
+        error("Please provide either --input or --sra_manifest, not both")
+    }
+    if (!params.input && !params.sra_manifest) {
+        error("Please provide either --input FASTQ samplesheet or --sra_manifest")
+    }
+    if (!params.transcript_fasta) {
+        error("Please provide --transcript_fasta for Salmon indexing and downstream isoform analysis")
+    }
+    if (!params.gtf) {
+        error("Please provide --gtf so Salmon can produce gene-level mappings and ISAR can map transcripts to genes")
+    }
+}
+
+def sraRowToInput(meta, run_accession) {
+    if (!meta.id) {
+        error("Please check SRA manifest -> Sample name must be provided")
+    }
+    if (!run_accession) {
+        error("Please check SRA manifest -> run_accession must be provided for sample ${meta.id}")
+    }
+    return [ meta.id, meta + [ single_end:false ], run_accession ]
 }
 
 //
@@ -275,6 +319,8 @@ def toolCitationText() {
     def citation_text = [
             "Tools used in the workflow included:",
             "FastQC (Andrews 2010),",
+            "fastp (Chen et al. 2018),",
+            "Salmon (Patro et al. 2017),",
             "MultiQC (Ewels et al. 2016)",
             "."
         ].join(' ').trim()
@@ -288,6 +334,8 @@ def toolBibliographyText() {
     // Uncomment function in methodsDescriptionText to render in MultiQC report
     def reference_text = [
             "<li>Andrews S, (2010) FastQC, URL: https://www.bioinformatics.babraham.ac.uk/projects/fastqc/).</li>",
+            "<li>Chen S, Zhou Y, Chen Y, Gu J. (2018) fastp: an ultra-fast all-in-one FASTQ preprocessor. Bioinformatics. doi: 10.1093/bioinformatics/bty560.</li>",
+            "<li>Patro R, Duggal G, Love MI, Irizarry RA, Kingsford C. (2017) Salmon provides fast and bias-aware quantification of transcript expression. Nat Methods. doi: 10.1038/nmeth.4197.</li>",
             "<li>Ewels, P., Magnusson, M., Lundin, S., & Käller, M. (2016). MultiQC: summarize analysis results for multiple tools and samples in a single report. Bioinformatics , 32(19), 3047–3048. doi: /10.1093/bioinformatics/btw354</li>"
         ].join(' ').trim()
 
