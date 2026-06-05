@@ -2,7 +2,7 @@
 
 Last updated: 2026-06-02
 
-This document records the current implemented V1 interface. It replaces the earlier planning notes and should be read together with `docs/usage.md` and `nextflow_schema.json`.
+This document records the current implemented V1 interface. It replaces the earlier planning notes and should be read together with `../usage.md` and `nextflow_schema.json`.
 
 ## Scope
 
