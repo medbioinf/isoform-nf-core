@@ -9,6 +9,7 @@ This documentation is grouped by use case. Start with the first section if you a
 - [Project structure and nf-core basics](getting_started/project_structure_and_nfcore_basics.md): repository layout, Nextflow concepts, nf-core conventions, modules, configuration, and outputs.
 - [Tools and biology explained](getting_started/tools_and_biology_explained.md): non-biologist explanation of genes, transcripts, isoforms, read types, references, and the tools used in the workflow.
 - [Interface and inputs explained](getting_started/interface_and_inputs_explained.md): FASTQ samplesheets, SRA manifests, contrasts, reference files, user parameters, and validation rules.
+- [Prerequisites to run the pipeline](getting_started/prerequisites.md): runtime setup, input/reference requirements, optional Pfam resources, and compute/storage expectations.
 
 ## User Docs
 

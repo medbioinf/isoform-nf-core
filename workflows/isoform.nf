@@ -11,6 +11,10 @@ include { SALMON_QUANT           } from '../modules/nf-core/salmon/quant/main'
 include { FETCH_SRA_FASTQ        } from '../modules/local/fetch_sra_fastq/main'
 include { ISAR_ANALYSIS          } from '../modules/local/isar_analysis/main'
 include { ISAR_VISUALIZATION     } from '../modules/local/isar_visualization/main'
+include { PFAM_PREPARE           } from '../modules/local/pfam_prepare/main'
+include { PFAM_SCAN              } from '../modules/local/pfam_scan/main'
+include { PFAM_IMPORT            } from '../modules/local/pfam_import/main'
+include { PFAM_VISUALIZATION     } from '../modules/local/pfam_visualization/main'
 include { MULTIQC                } from '../modules/nf-core/multiqc/main'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -108,6 +112,10 @@ workflow ISOFORM {
     //
     ch_isar_results = channel.empty()
     ch_isar_visualization_results = channel.empty()
+    ch_pfam_prepare_results = channel.empty()
+    ch_pfam_scan_results = channel.empty()
+    ch_pfam_import_results = channel.empty()
+    ch_pfam_visualization_results = channel.empty()
     if (params.run_isar) {
         ch_analysis_script = channel.value(file("${projectDir}/bin/run_isar_analysis.R", checkIfExists: true))
         ch_input_samplesheet = ch_metadata_file
@@ -133,6 +141,46 @@ workflow ISOFORM {
                 ISAR_ANALYSIS.out.results
             )
             ch_isar_visualization_results = ISAR_VISUALIZATION.out.results
+        }
+
+        if (params.run_pfam_prepare || (!params.pfam_results && params.pfam_db)) {
+            ch_pfam_prepare_script = channel.value(file("${projectDir}/bin/run_pfam_prepare.R", checkIfExists: true))
+            PFAM_PREPARE (
+                ch_pfam_prepare_script,
+                ISAR_ANALYSIS.out.results
+            )
+            ch_pfam_prepare_results = PFAM_PREPARE.out.results
+        }
+
+        if (!params.pfam_results && params.pfam_db) {
+            ch_pfam_db = channel.value(file(params.pfam_db, checkIfExists: true))
+            PFAM_SCAN (
+                PFAM_PREPARE.out.aa_fasta,
+                ch_pfam_db
+            )
+            ch_pfam_scan_results = PFAM_SCAN.out.results
+        }
+
+        if (params.pfam_results || params.pfam_db) {
+            ch_pfam_import_script = channel.value(file("${projectDir}/bin/run_pfam_import.R", checkIfExists: true))
+            ch_pfam_results = params.pfam_results ?
+                channel.value(file(params.pfam_results, checkIfExists: true)) :
+                PFAM_SCAN.out.results
+            PFAM_IMPORT (
+                ch_pfam_import_script,
+                ISAR_ANALYSIS.out.results,
+                ch_pfam_results
+            )
+            ch_pfam_import_results = PFAM_IMPORT.out.results
+
+            if (params.run_pfam_visualization) {
+                ch_pfam_visualization_script = channel.value(file("${projectDir}/bin/run_pfam_visualization.R", checkIfExists: true))
+                PFAM_VISUALIZATION (
+                    ch_pfam_visualization_script,
+                    PFAM_IMPORT.out.results
+                )
+                ch_pfam_visualization_results = PFAM_VISUALIZATION.out.results
+            }
         }
     }
 
@@ -210,6 +258,10 @@ workflow ISOFORM {
     quant_results  = SALMON_QUANT.out.results       // channel: [ meta, path(salmon_quant_dir) ]
     isar_results   = ch_isar_results                // channel: path(isar_analysis)
     isar_visualization_results = ch_isar_visualization_results // channel: path(isar_visualization)
+    pfam_prepare_results = ch_pfam_prepare_results  // channel: path(pfam_prepare)
+    pfam_scan_results = ch_pfam_scan_results        // channel: path(pfam_scan.out)
+    pfam_import_results = ch_pfam_import_results    // channel: path(pfam_import)
+    pfam_visualization_results = ch_pfam_visualization_results // channel: path(pfam_visualization)
     multiqc_report = MULTIQC.out.report.toList()    // channel: /path/to/multiqc_report.html
     versions       = ch_versions                 // channel: [ path(versions.yml) ]
 

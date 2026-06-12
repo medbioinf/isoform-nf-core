@@ -47,6 +47,10 @@ workflow ISOFORM_NF_CORE {
     quant_results  = ISOFORM.out.quant_results
     isar_results   = ISOFORM.out.isar_results
     isar_visualization_results = ISOFORM.out.isar_visualization_results
+    pfam_prepare_results = ISOFORM.out.pfam_prepare_results
+    pfam_scan_results = ISOFORM.out.pfam_scan_results
+    pfam_import_results = ISOFORM.out.pfam_import_results
+    pfam_visualization_results = ISOFORM.out.pfam_visualization_results
     multiqc_report = ISOFORM.out.multiqc_report // channel: /path/to/multiqc_report.html
 }
 /*

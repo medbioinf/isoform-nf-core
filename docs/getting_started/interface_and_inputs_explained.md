@@ -434,6 +434,62 @@ Default:
 
 Controls how many top genes are used for visualization outputs such as top switching genes and per-gene isoform usage plots.
 
+### `--run_pfam_prepare`
+
+Default:
+
+```text
+false
+```
+
+Controls whether the pipeline extracts amino-acid FASTA sequences from significant ISAR switch candidates.
+
+This is the handoff point to Pfam. The FASTA can be scanned with `pfam_scan.pl` or HMMER against a Pfam database. This step is also enabled automatically when `--pfam_db` is provided, because the pipeline needs the FASTA before it can run `pfam_scan.pl`.
+
+### `--pfam_results`
+
+Optional path to an existing `pfam_scan.pl` result file.
+
+If this is provided, the pipeline imports Pfam domain hits into the ISAR object and creates Pfam domain consequence outputs. This overrides pipeline-run Pfam scanning.
+
+### `--pfam_db`
+
+Optional path to a Pfam database directory.
+
+If `--pfam_results` is not provided and `--pfam_db` is provided, the pipeline runs `pfam_scan.pl` itself on the prepared amino-acid FASTA. The directory should contain `Pfam-A.hmm` and preferably the `hmmpress` index files `Pfam-A.hmm.h3f`, `.h3i`, `.h3m`, and `.h3p`.
+
+### `--pfam_top_n`
+
+Default:
+
+```text
+25
+```
+
+Controls how many high-ranking switch candidates are listed in the Pfam preparation table.
+
+### `--run_pfam_visualization`
+
+Default:
+
+```text
+true
+```
+
+Controls whether Pfam consequence and domain architecture plots are generated after Pfam import.
+
+This only has an effect when Pfam results are available, either from `--pfam_results` or from a pipeline-run `pfam_scan.pl` scan via `--pfam_db`.
+
+### `--pfam_visualization_top_n`
+
+Default:
+
+```text
+12
+```
+
+Controls how many domain-change candidates are plotted in the Pfam visualization output.
+
 ## MultiQC Options
 
 ### `--multiqc_title`

@@ -176,6 +176,39 @@
                     "type": "integer",
                     "default": 10,
                     "description": "Number of top switching genes used for ISAR visualization outputs."
+                },
+                "run_pfam_prepare": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Prepare amino-acid FASTA input for optional Pfam domain annotation.",
+                    "help_text": "After ISAR, the pipeline can extract amino-acid sequences from significant switching genes. The resulting FASTA can be scanned with pfam_scan.pl or HMMER against a Pfam database. This is enabled automatically when --pfam_db is provided."
+                },
+                "pfam_results": {
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "Optional pfam_scan.pl result file to import into IsoformSwitchAnalyzeR.",
+                    "help_text": "When provided, the pipeline imports Pfam domain hits with IsoformSwitchAnalyzeR::analyzePFAM() and can create Pfam consequence and domain architecture visualizations. This overrides --pfam_db / pipeline-run Pfam scanning."
+                },
+                "pfam_db": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Optional Pfam database directory for running pfam_scan.pl inside the pipeline.",
+                    "help_text": "The directory should contain Pfam-A.hmm and preferably the hmmpress index files Pfam-A.hmm.h3f, .h3i, .h3m, and .h3p. If --pfam_results is not supplied and --pfam_db is supplied, the pipeline runs pfam_scan.pl on the prepared amino-acid FASTA."
+                },
+                "pfam_top_n": {
+                    "type": "integer",
+                    "default": 25,
+                    "description": "Number of strongest switch candidates to include in the Pfam preparation table."
+                },
+                "run_pfam_visualization": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Generate Pfam domain consequence and domain architecture visualizations when Pfam results are imported."
+                },
+                "pfam_visualization_top_n": {
+                    "type": "integer",
+                    "default": 12,
+                    "description": "Number of Pfam domain-change candidates to plot."
                 }
             }
         },

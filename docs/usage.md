@@ -160,6 +160,12 @@ isar_dif_cutoff: 0.1
 isar_qvalue_cutoff: 0.05
 run_isar_visualization: true
 isar_visualization_top_n: 10
+run_pfam_prepare: false
+pfam_results: null
+pfam_db: null
+pfam_top_n: 25
+run_pfam_visualization: true
+pfam_visualization_top_n: 12
 outdir: './results/'
 <...>
 ```
