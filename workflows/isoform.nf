@@ -10,6 +10,7 @@ include { SALMON_INDEX           } from '../modules/nf-core/salmon/index/main'
 include { SALMON_QUANT           } from '../modules/nf-core/salmon/quant/main'
 include { FETCH_SRA_FASTQ        } from '../modules/local/fetch_sra_fastq/main'
 include { ISAR_ANALYSIS          } from '../modules/local/isar_analysis/main'
+include { ISAR_VISUALIZATION     } from '../modules/local/isar_visualization/main'
 include { MULTIQC                } from '../modules/nf-core/multiqc/main'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -106,6 +107,7 @@ workflow ISOFORM {
     // MODULE: Import Salmon quantifications into IsoformSwitchAnalyzeR
     //
     ch_isar_results = channel.empty()
+    ch_isar_visualization_results = channel.empty()
     if (params.run_isar) {
         ch_analysis_script = channel.value(file("${projectDir}/bin/run_isar_analysis.R", checkIfExists: true))
         ch_input_samplesheet = ch_metadata_file
@@ -123,6 +125,15 @@ workflow ISOFORM {
             ch_transcript_fasta
         )
         ch_isar_results = ISAR_ANALYSIS.out.results
+
+        if (params.run_isar_visualization) {
+            ch_visualization_script = channel.value(file("${projectDir}/bin/run_isar_visualization.R", checkIfExists: true))
+            ISAR_VISUALIZATION (
+                ch_visualization_script,
+                ISAR_ANALYSIS.out.results
+            )
+            ch_isar_visualization_results = ISAR_VISUALIZATION.out.results
+        }
     }
 
     //
@@ -198,6 +209,7 @@ workflow ISOFORM {
     emit:
     quant_results  = SALMON_QUANT.out.results       // channel: [ meta, path(salmon_quant_dir) ]
     isar_results   = ch_isar_results                // channel: path(isar_analysis)
+    isar_visualization_results = ch_isar_visualization_results // channel: path(isar_visualization)
     multiqc_report = MULTIQC.out.report.toList()    // channel: /path/to/multiqc_report.html
     versions       = ch_versions                 // channel: [ path(versions.yml) ]
 

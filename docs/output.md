@@ -16,6 +16,7 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and processes d
 - [fastp](#fastp) - Adapter trimming and read filtering
 - [Salmon](#salmon) - Transcriptome indexing and transcript abundance quantification
 - [IsoformSwitchAnalyzeR](#isoformswitchanalyzer) - Isoform switch import and differential isoform usage analysis
+- [ISAR visualization](#isar-visualization) - Lightweight plots and candidate tables from IsoformSwitchAnalyzeR output
 - [MultiQC](#multiqc) - Aggregate report describing results and QC from the whole pipeline
 - [Pipeline information](#pipeline-information) - Report metrics generated during the workflow execution
 
@@ -108,6 +109,26 @@ If the samplesheet contains multiple rows with the same `sample` value, the pipe
 </details>
 
 [IsoformSwitchAnalyzeR](https://bioconductor.org/packages/IsoformSwitchAnalyzeR/) imports the Salmon transcript estimates together with the sample design and transcript annotation. If the design contains two conditions with at least two samples per condition, the pipeline runs the DEXSeq-based isoform switch test. Smaller smoke-test datasets can still be imported, but statistical switch testing is skipped and this is recorded in `analysis_notes.txt`.
+
+### ISAR visualization
+
+<details markdown="1">
+<summary>Output files</summary>
+
+- `isar/isar_visualization/`
+  - `top_switch_plots.pdf`: official IsoformSwitchAnalyzeR `switchPlot()` pages for the top ranked switching genes.
+  - `isoform_switch_volcano.png` / `.pdf`: isoform-level effect size versus statistical support.
+  - `top_switching_genes.png` / `.pdf`: top genes ranked by gene-level switch q-value.
+  - `top_gene_isoform_usage.pdf`: one combined PDF with per-gene isoform usage plots.
+  - `top_gene_isoform_usage/*.png` / `.pdf`: individual per-gene isoform usage plots.
+  - `ptc_switch_summary.png` / `.pdf` / `.csv`: PTC status summary for significant switch candidates, when candidates exist.
+  - `top_isoform_candidates.csv`: top isoform-level switch candidates with formatted effect-size and q-value columns.
+  - `top_gene_summary.csv`: top gene-level switch summary.
+  - `visualization_notes.txt`: run summary and explanation if plots were skipped.
+
+</details>
+
+The ISAR visualization step is controlled by `--run_isar_visualization` and `--isar_visualization_top_n`. It is intentionally lightweight and does not require external annotation databases. If the ISAR step only imported data, or if no genes pass the current switch cutoffs, the visualization step exits successfully and writes notes plus empty summary tables instead of failing the workflow.
 
 ### MultiQC
 

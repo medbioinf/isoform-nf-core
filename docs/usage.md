@@ -158,6 +158,8 @@ gtf: './reference/annotation.gtf.gz'
 run_isar: true
 isar_dif_cutoff: 0.1
 isar_qvalue_cutoff: 0.05
+run_isar_visualization: true
+isar_visualization_top_n: 10
 outdir: './results/'
 <...>
 ```

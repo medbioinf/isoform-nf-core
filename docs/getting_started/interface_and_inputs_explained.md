@@ -414,6 +414,26 @@ Default:
 
 Controls how many top switch candidates are written to `top_switches.csv`.
 
+### `--run_isar_visualization`
+
+Default:
+
+```text
+true
+```
+
+If true, the pipeline creates lightweight plots and candidate tables from the IsoformSwitchAnalyzeR result object. This step is designed to be safe for real smoke tests: if no statistically significant switches are detected, it writes explanatory notes and empty summary tables instead of crashing.
+
+### `--isar_visualization_top_n`
+
+Default:
+
+```text
+10
+```
+
+Controls how many top genes are used for visualization outputs such as top switching genes and per-gene isoform usage plots.
+
 ## MultiQC Options
 
 ### `--multiqc_title`

@@ -165,6 +165,17 @@
                     "type": "integer",
                     "default": 10,
                     "description": "Number of top switch candidates to export when a statistical switch test is run."
+                },
+                "run_isar_visualization": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Generate lightweight IsoformSwitchAnalyzeR result visualizations.",
+                    "help_text": "Creates official IsoformSwitchAnalyzeR switchPlot pages, volcano, top-gene, per-gene isoform usage, PTC summary, and candidate CSV outputs after the ISAR step. No-switch or import-only runs finish gracefully with notes and empty summary tables."
+                },
+                "isar_visualization_top_n": {
+                    "type": "integer",
+                    "default": 10,
+                    "description": "Number of top switching genes used for ISAR visualization outputs."
                 }
             }
         },

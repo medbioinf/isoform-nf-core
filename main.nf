@@ -46,6 +46,7 @@ workflow ISOFORM_NF_CORE {
     emit:
     quant_results  = ISOFORM.out.quant_results
     isar_results   = ISOFORM.out.isar_results
+    isar_visualization_results = ISOFORM.out.isar_visualization_results
     multiqc_report = ISOFORM.out.multiqc_report // channel: /path/to/multiqc_report.html
 }
 /*
