@@ -15,6 +15,12 @@ include { PFAM_PREPARE           } from '../modules/local/pfam_prepare/main'
 include { PFAM_SCAN              } from '../modules/local/pfam_scan/main'
 include { PFAM_IMPORT            } from '../modules/local/pfam_import/main'
 include { PFAM_VISUALIZATION     } from '../modules/local/pfam_visualization/main'
+include { IUPRED2A_PREPARE       } from '../modules/local/iupred2a_prepare/main'
+include { IUPRED2A_RUN           } from '../modules/local/iupred2a_run/main'
+include { IUPRED2A_IMPORT        } from '../modules/local/iupred2a_import/main'
+include { SIGNALP_PREPARE        } from '../modules/local/signalp_prepare/main'
+include { SIGNALP_RUN            } from '../modules/local/signalp_run/main'
+include { SIGNALP_IMPORT         } from '../modules/local/signalp_import/main'
 include { MULTIQC                } from '../modules/nf-core/multiqc/main'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -116,6 +122,12 @@ workflow ISOFORM {
     ch_pfam_scan_results = channel.empty()
     ch_pfam_import_results = channel.empty()
     ch_pfam_visualization_results = channel.empty()
+    ch_iupred2a_prepare_results = channel.empty()
+    ch_iupred2a_run_results = channel.empty()
+    ch_iupred2a_import_results = channel.empty()
+    ch_signalp_prepare_results = channel.empty()
+    ch_signalp_run_results = channel.empty()
+    ch_signalp_import_results = channel.empty()
     if (params.run_isar) {
         ch_analysis_script = channel.value(file("${projectDir}/bin/run_isar_analysis.R", checkIfExists: true))
         ch_input_samplesheet = ch_metadata_file
@@ -181,6 +193,54 @@ workflow ISOFORM {
                 )
                 ch_pfam_visualization_results = PFAM_VISUALIZATION.out.results
             }
+        }
+
+        if (params.run_iupred2a) {
+            ch_iupred2a_prepare_script = channel.value(file("${projectDir}/bin/run_iupred2a_prepare.R", checkIfExists: true))
+            ch_iupred2a_convert_script = channel.value(file("${projectDir}/bin/convert_iupred2a_to_isar.py", checkIfExists: true))
+            ch_iupred2a_import_script = channel.value(file("${projectDir}/bin/run_iupred2a_import.R", checkIfExists: true))
+
+            IUPRED2A_PREPARE (
+                ch_iupred2a_prepare_script,
+                ISAR_ANALYSIS.out.results
+            )
+            ch_iupred2a_prepare_results = IUPRED2A_PREPARE.out.results
+
+            IUPRED2A_RUN (
+                IUPRED2A_PREPARE.out.aa_fasta,
+                ch_iupred2a_convert_script
+            )
+            ch_iupred2a_run_results = IUPRED2A_RUN.out.results
+
+            IUPRED2A_IMPORT (
+                ch_iupred2a_import_script,
+                ISAR_ANALYSIS.out.results,
+                IUPRED2A_RUN.out.results
+            )
+            ch_iupred2a_import_results = IUPRED2A_IMPORT.out.results
+        }
+
+        if (params.run_signalp) {
+            ch_signalp_prepare_script = channel.value(file("${projectDir}/bin/run_signalp_prepare.R", checkIfExists: true))
+            ch_signalp_import_script = channel.value(file("${projectDir}/bin/run_signalp_import.R", checkIfExists: true))
+
+            SIGNALP_PREPARE (
+                ch_signalp_prepare_script,
+                ISAR_ANALYSIS.out.results
+            )
+            ch_signalp_prepare_results = SIGNALP_PREPARE.out.results
+
+            SIGNALP_RUN (
+                SIGNALP_PREPARE.out.aa_fasta
+            )
+            ch_signalp_run_results = SIGNALP_RUN.out.results
+
+            SIGNALP_IMPORT (
+                ch_signalp_import_script,
+                ISAR_ANALYSIS.out.results,
+                SIGNALP_RUN.out.results
+            )
+            ch_signalp_import_results = SIGNALP_IMPORT.out.results
         }
     }
 
@@ -262,6 +322,12 @@ workflow ISOFORM {
     pfam_scan_results = ch_pfam_scan_results        // channel: path(pfam_scan.out)
     pfam_import_results = ch_pfam_import_results    // channel: path(pfam_import)
     pfam_visualization_results = ch_pfam_visualization_results // channel: path(pfam_visualization)
+    iupred2a_prepare_results = ch_iupred2a_prepare_results // channel: path(iupred2a_prepare)
+    iupred2a_run_results = ch_iupred2a_run_results  // channel: path(iupred2a_anchor2_isar.out)
+    iupred2a_import_results = ch_iupred2a_import_results // channel: path(iupred2a_import)
+    signalp_prepare_results = ch_signalp_prepare_results // channel: path(signalp_prepare)
+    signalp_run_results = ch_signalp_run_results    // channel: path(signalp5_summary.signalp5)
+    signalp_import_results = ch_signalp_import_results // channel: path(signalp_import)
     multiqc_report = MULTIQC.out.report.toList()    // channel: /path/to/multiqc_report.html
     versions       = ch_versions                 // channel: [ path(versions.yml) ]
 

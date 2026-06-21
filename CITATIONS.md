@@ -18,6 +18,14 @@
 
 > Ewels P, Magnusson M, Lundin S, Käller M. MultiQC: summarize analysis results for multiple tools and samples in a single report. Bioinformatics. 2016 Oct 1;32(19):3047-8. doi: 10.1093/bioinformatics/btw354. Epub 2016 Jun 16. PubMed PMID: 27312411; PubMed Central PMCID: PMC5039924.
 
+- [IUPred2A](https://pubmed.ncbi.nlm.nih.gov/29860432/)
+
+> Mészáros B, Erdős G, Dosztányi Z. IUPred2A: context-dependent prediction of protein disorder as a function of redox state and protein binding. Nucleic Acids Res. 2018 Jul 2;46(W1):W329-W337. doi: 10.1093/nar/gky384. PubMed PMID: 29860432.
+
+- [SignalP 5.0](https://doi.org/10.1038/s41587-019-0036-z)
+
+> Almagro Armenteros JJ, Tsirigos KD, Sønderby CK, Petersen TN, Winther O, Brunak S, von Heijne G, Nielsen H. SignalP 5.0 improves signal peptide predictions using deep neural networks. Nat Biotechnol. 2019;37:420-423. doi: 10.1038/s41587-019-0036-z.
+
 ## Software packaging/containerisation tools
 
 - [Anaconda](https://anaconda.com)

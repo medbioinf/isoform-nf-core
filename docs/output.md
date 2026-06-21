@@ -17,6 +17,9 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and processes d
 - [Salmon](#salmon) - Transcriptome indexing and transcript abundance quantification
 - [IsoformSwitchAnalyzeR](#isoformswitchanalyzer) - Isoform switch import and differential isoform usage analysis
 - [ISAR visualization](#isar-visualization) - Lightweight plots and candidate tables from IsoformSwitchAnalyzeR output
+- [Pfam annotation](#pfam-annotation) - Optional protein-domain annotation for significant switch candidates
+- [IUPred2A annotation](#iupred2a-annotation) - Optional intrinsically disordered region and ANCHOR2 annotation
+- [SignalP annotation](#signalp-annotation) - Optional signal peptide annotation
 - [MultiQC](#multiqc) - Aggregate report describing results and QC from the whole pipeline
 - [Pipeline information](#pipeline-information) - Report metrics generated during the workflow execution
 
@@ -157,6 +160,47 @@ Pfam support is optional and split into three parts. First, the pipeline prepare
   - `pfam_visualization_notes.txt`: interpretation notes.
 
 The pipeline does not download the Pfam database automatically. The Pfam database is large, so it should be prepared as a reference resource and passed with `--pfam_db`.
+
+### IUPred2A annotation
+
+IUPred2A support is optional and controlled by `--run_iupred2a`. It predicts intrinsically disordered regions (IDRs) and ANCHOR2 binding regions in proteins from significant isoform switch candidates.
+
+- `iupred2a/iupred2a_prepare/`
+  - `isoform_iupred2a_candidates_AA.fasta`: amino-acid FASTA used as IUPred2A input.
+  - `iupred2a_top_candidates.csv`: strongest isoform switch candidates selected for IUPred2A inspection.
+  - `switchAnalyzeRlist_with_sequences.rds`: ISAR object after sequence extraction, when sequence extraction succeeds.
+  - `iupred2a_prepare_notes.txt`: summary of candidate and FASTA generation.
+- `iupred2a/iupred2a/`
+  - `iupred2a_anchor2.raw`: raw IUPred2A/ANCHOR2 output.
+  - `iupred2a_anchor2_isar.out`: converted output in the block format imported by IsoformSwitchAnalyzeR.
+  - `iupred2a.log`: run and conversion log.
+- `iupred2a/iupred2a_import/`
+  - `switchAnalyzeRlist_with_iupred2a.rds`: ISAR object after `analyzeIUPred2A()`.
+  - `iupred2a_idr_analysis.csv`: imported IDR annotation table.
+  - `isoform_features_with_iupred2a.csv`: isoform feature table with IDR annotation columns when available.
+  - `iupred2a_idr_summary.png` / `.pdf` / `.csv`: overview of imported IDR annotation availability.
+  - `iupred2a_import_notes.txt`: import summary and interpretation notes.
+
+### SignalP annotation
+
+SignalP support is optional and controlled by `--run_signalp`. It predicts signal peptides in proteins from significant isoform switch candidates. Signal peptides are short protein segments that can route proteins into secretory or membrane-associated pathways.
+
+- `signalp/signalp_prepare/`
+  - `isoform_signalp_candidates_AA.fasta`: amino-acid FASTA used as SignalP input.
+  - `signalp_top_candidates.csv`: strongest isoform switch candidates selected for SignalP inspection.
+  - `switchAnalyzeRlist_with_sequences.rds`: ISAR object after sequence extraction, when sequence extraction succeeds.
+  - `signalp_prepare_notes.txt`: summary of candidate and FASTA generation.
+- `signalp/signalp/`
+  - `signalp5_summary.signalp5`: SignalP 5 short-format output imported by IsoformSwitchAnalyzeR.
+  - `signalp.log`: SignalP run log.
+- `signalp/signalp_import/`
+  - `switchAnalyzeRlist_with_signalp.rds`: ISAR object after `analyzeSignalP()`.
+  - `signalp_signal_peptide_analysis.csv`: imported signal peptide annotation table.
+  - `isoform_features_with_signalp.csv`: isoform feature table with signal peptide annotation columns when available.
+  - `signalp_summary.png` / `.pdf` / `.csv`: overview of imported signal peptide annotation availability.
+  - `signalp_import_notes.txt`: import summary and interpretation notes.
+
+SignalP container and licensing suitability should be checked for the target environment before treating it as a fully portable public pipeline dependency.
 
 ### MultiQC
 

@@ -1,6 +1,6 @@
 # Implementation Validation Log
 
-Last updated: 2026-06-12
+Last updated: 2026-06-21
 
 This document records what we tested while implementing the current reusable pipeline. It complements the higher-level [V1 testing strategy](v1_testing_strategy.md) by documenting concrete validation runs, what each run was meant to prove, and what we learned.
 
@@ -357,6 +357,127 @@ results/gse50760_pfam_scan_direct_validation/
 
 Large serialized R objects were intentionally not copied back from the VM.
 
+## IUPred2A Annotation Path
+
+Implementation area:
+
+- extraction of amino-acid sequences from significant ISAR switch candidates
+- running IUPred2A with ANCHOR2 enabled
+- converting multi-FASTA IUPred2A output into the block format imported by IsoformSwitchAnalyzeR
+- importing IDR annotations with `analyzeIUPred2A()`
+
+Implementation status:
+
+- Added as an optional module controlled by `--run_iupred2a`.
+- Added dedicated preparation, run, and import modules.
+- Added a converter script based on the GSE50760 prototype.
+- Added output, interface, and prerequisites documentation.
+
+Validation performed locally:
+
+- Python syntax check for `convert_iupred2a_to_isar.py`.
+- Tiny converter smoke test with two artificial FASTA records.
+- VM `nextflow config -profile test,docker`.
+- VM `nextflow run . -profile test,docker -stub-run --run_iupred2a`.
+- Direct VM container smoke test with a tiny amino-acid FASTA.
+
+Real-data subset validation performed on the VM:
+
+- Used 10 real GSE50760 isoforms selected from the Pfam candidate FASTA.
+- Ran the IUPred2A container with ANCHOR2 enabled.
+- Converted the raw multi-FASTA output into the IsoformSwitchAnalyzeR import format.
+- Imported the converted output into the real GSE50760 ISAR object.
+
+Outcome:
+
+- Converter restored per-isoform output blocks correctly.
+- Nextflow stub workflow completed successfully.
+- The IUPred2A container produced IUPred2/ANCHOR2 rows for the tiny FASTA.
+- The real-data subset import produced 34 IDR rows.
+- IsoformSwitchAnalyzeR reported IDR information added to 8 transcripts.
+
+Pending validation:
+
+- Full real-data workflow validation with `--run_iupred2a`.
+
+Runtime note:
+
+- The current third-party IUPred2A image lacks `ps`, which Nextflow needs for trace/timeline/report metrics.
+- Runs with `--run_iupred2a` currently disable those runtime reports until a more suitable pinned container is available.
+
+## SignalP Annotation Path
+
+Implementation area:
+
+- extraction of amino-acid sequences from significant ISAR switch candidates
+- running SignalP 5 in eukaryotic mode
+- importing signal peptide annotations with `analyzeSignalP()`
+
+Implementation status:
+
+- Added as an optional module controlled by `--run_signalp`.
+- Added dedicated preparation, run, and import modules.
+- Added output, interface, and prerequisites documentation.
+- Documented the SignalP container/licensing caveat.
+
+Validation performed:
+
+- VM `nextflow config -profile test,docker`.
+- VM `nextflow run . -profile test,docker -stub-run --run_signalp`.
+- Direct VM container smoke test with a tiny amino-acid FASTA.
+
+Real-data subset validation performed on the VM:
+
+- Used 10 real GSE50760 isoforms selected from the Pfam candidate FASTA.
+- Ran the SignalP container after confirming the module-level `PATH` fix.
+- Imported the SignalP output into the real GSE50760 ISAR object.
+
+Full real-data workflow validation performed on the VM:
+
+```bash
+nextflow run . -profile docker \
+    --input assets/gse50760_4v4_existing_fastp_samplesheet.csv \
+    --contrasts assets/gse50760_primary_crc_vs_normal_colon.csv \
+    --transcript_fasta ../nextflow-studienprojekt/gse50760/reference/gencode.v49.transcripts.fa.gz \
+    --gtf ../nextflow-studienprojekt/gse50760/reference/gencode.v49.chr_patch_hapl_scaff.annotation.gtf.gz \
+    --run_signalp \
+    --outdir results/gse50760_4v4_signalp_full_validation \
+    --multiqc_title GSE50760_4v4_signalp_full_validation \
+    -work-dir work_gse50760_4v4_signalp_full_validation
+```
+
+The validation samplesheet reused existing GSE50760 fastp FASTQs on the VM to avoid repeating SRA download and trimming. This still exercised the real Salmon, ISAR, SignalP preparation, SignalP run, and SignalP import path.
+
+Outcome:
+
+- Nextflow stub workflow completed successfully.
+- The SignalP container produced short-format SignalP 5 output for the tiny FASTA.
+- The real-data subset predicted and imported 1 signal peptide from 10 isoforms.
+- The full real-data workflow completed successfully in 52m 9s with 39 successful tasks.
+- SignalP preparation found 516 significant switch candidates and wrote 2924 amino-acid FASTA records.
+- `signalp5_summary.signalp5` contained 2924 isoform predictions plus the SignalP header lines.
+- SignalP import added 343 signal peptide rows.
+- `isoform_features` contained 343 isoforms with `signal_peptide_identified == yes`, 69631 with `no`, and 35701 with `unknown`.
+
+Issue discovered and fixed:
+
+- Direct module execution initially failed with `signalp: command not found` because `bash -lc` reset the container `PATH`.
+- Calling `/opt/signalp/bin/signalp` directly was not suitable because SignalP's bundled assets are resolved relative to its expected runtime layout.
+- The module now exports `/opt/signalp/bin` onto `PATH` before invoking `signalp`.
+
+Runtime note:
+
+- The current third-party SignalP image lacks `ps`, which Nextflow needs for trace/timeline/report metrics.
+- Runs with `--run_signalp` currently disable those runtime reports until a more suitable pinned container is available.
+
+Copied-back local inspection path:
+
+```text
+results/gse50760_4v4_signalp_full_validation_copy/
+```
+
+The copied files include selected SignalP import outputs, raw SignalP output, pipeline parameters, and the DAG. They are local inspection artifacts and remain outside version control.
+
 ## Documentation Validation
 
 Implementation area:
@@ -408,6 +529,31 @@ nextflow run . \
     --outdir results/test_pfam_import_stub
 ```
 
+For changes touching IUPred2A workflow wiring:
+
+```bash
+nextflow run . \
+    -profile test,docker \
+    -stub-run \
+    --run_iupred2a \
+    --outdir results/test_iupred2a_stub
+```
+
+For changes touching SignalP workflow wiring:
+
+```bash
+nextflow run . \
+    -profile test,docker \
+    -stub-run \
+    --run_signalp \
+    --outdir results/test_signalp_stub
+```
+
+For changes touching the real SignalP command or import behavior:
+
+- Run a VM validation on data that emits non-empty amino-acid FASTA input.
+- The tiny `test,docker` dataset may skip the actual `SIGNALP_RUN` process when no candidate AA records are produced, so it is useful for graph health but not sufficient for command-level SignalP validation.
+
 For changes touching SRA mode:
 
 - Run at least one small real SRA validation on the VM.
@@ -418,5 +564,7 @@ For changes touching SRA mode:
 - Full real-data runs are manual and not part of CI.
 - SRA tests depend on network access and public archive availability.
 - Pfam tests require a prepared local Pfam database.
+- Full SignalP validation depends on a usable SignalP container and currently disables Nextflow trace/timeline/report metrics because the configured image lacks `ps`.
+- Full IUPred2A workflow validation is still pending.
 - The synthetic fixture is intentionally tiny and cannot prove biological correctness.
 - More nf-test snapshots/assertions should be added once the output contract stabilizes.

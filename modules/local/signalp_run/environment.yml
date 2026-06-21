@@ -1,0 +1,5 @@
+name: signalp_run
+channels:
+  - conda-forge
+dependencies:
+  - conda-forge::python=3.11

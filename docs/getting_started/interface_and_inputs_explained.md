@@ -490,6 +490,56 @@ Default:
 
 Controls how many domain-change candidates are plotted in the Pfam visualization output.
 
+### `--run_iupred2a`
+
+Default:
+
+```text
+false
+```
+
+Controls whether the pipeline runs optional IUPred2A/ANCHOR2 disorder annotation on significant isoform switch candidates.
+
+IUPred2A predicts intrinsically disordered protein regions. These are flexible protein regions that do not fold into one stable structure. ANCHOR2 adds predicted disordered binding regions, meaning flexible regions that may become structured when binding to another molecule.
+
+When enabled, the pipeline extracts amino-acid FASTA sequences from significant switch candidates, runs IUPred2A, converts the output into the format expected by IsoformSwitchAnalyzeR, and imports the result with `analyzeIUPred2A()`.
+
+### `--iupred2a_top_n`
+
+Default:
+
+```text
+25
+```
+
+Controls how many high-ranking switch candidates are listed in the IUPred2A preparation table.
+
+### `--run_signalp`
+
+Default:
+
+```text
+false
+```
+
+Controls whether the pipeline runs optional SignalP signal peptide annotation on significant isoform switch candidates.
+
+SignalP predicts signal peptides. A signal peptide is a short protein segment that can route a protein into the secretory pathway, where proteins may be secreted, inserted into membranes, or processed in membrane-related compartments.
+
+When enabled, the pipeline extracts amino-acid FASTA sequences from significant switch candidates, runs SignalP 5 in eukaryotic mode, and imports the result with `analyzeSignalP()`.
+
+SignalP has historically had more restrictive distribution/licensing expectations than fully open tools. The current implementation is reproducible when the configured container is available, but container suitability should be checked for the target environment.
+
+### `--signalp_top_n`
+
+Default:
+
+```text
+25
+```
+
+Controls how many high-ranking switch candidates are listed in the SignalP preparation table.
+
 ## MultiQC Options
 
 ### `--multiqc_title`

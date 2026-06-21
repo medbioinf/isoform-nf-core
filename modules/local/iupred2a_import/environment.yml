@@ -1,0 +1,8 @@
+name: iupred2a_import
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - bioconda::bioconductor-isoformswitchanalyzer=2.6.0
+  - conda-forge::r-mass
+  - conda-forge::r-ggplot2

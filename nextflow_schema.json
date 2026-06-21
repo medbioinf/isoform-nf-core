@@ -209,6 +209,28 @@
                     "type": "integer",
                     "default": 12,
                     "description": "Number of Pfam domain-change candidates to plot."
+                },
+                "run_iupred2a": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Run optional IUPred2A/ANCHOR2 disorder annotation on significant isoform switch candidates.",
+                    "help_text": "When enabled, the pipeline extracts amino-acid sequences for significant switch candidates, runs IUPred2A with ANCHOR2, converts the output into the format expected by IsoformSwitchAnalyzeR, and imports IDR annotations with analyzeIUPred2A()."
+                },
+                "iupred2a_top_n": {
+                    "type": "integer",
+                    "default": 25,
+                    "description": "Number of strongest switch candidates to include in the IUPred2A preparation table."
+                },
+                "run_signalp": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Run optional SignalP signal peptide annotation on significant isoform switch candidates.",
+                    "help_text": "When enabled, the pipeline extracts amino-acid sequences for significant switch candidates, runs SignalP 5 in eukaryotic mode, and imports signal peptide annotations with analyzeSignalP(). SignalP container/license suitability should be checked for the target environment."
+                },
+                "signalp_top_n": {
+                    "type": "integer",
+                    "default": 25,
+                    "description": "Number of strongest switch candidates to include in the SignalP preparation table."
                 }
             }
         },

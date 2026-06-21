@@ -166,6 +166,10 @@ pfam_db: null
 pfam_top_n: 25
 run_pfam_visualization: true
 pfam_visualization_top_n: 12
+run_iupred2a: false
+iupred2a_top_n: 25
+run_signalp: false
+signalp_top_n: 25
 outdir: './results/'
 <...>
 ```

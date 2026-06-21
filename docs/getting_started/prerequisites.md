@@ -1,6 +1,6 @@
 # Prerequisites to Run the Pipeline
 
-Last updated: 2026-06-12
+Last updated: 2026-06-21
 
 This document explains what a user needs before running the pipeline. It focuses on practical setup: software runtime, input data, reference files, optional Pfam annotation resources, and compute/storage expectations.
 
@@ -16,6 +16,8 @@ For the normal reproducible path, the user should bring:
 - Optionally, a genome FASTA for Salmon decoy-aware indexing.
 - Optionally, a contrast file if the dataset has more than one comparison.
 - Optionally, a prepared Pfam database directory if Pfam domain annotation should be run.
+- Optionally, no extra reference resource for IUPred2A; it runs from extracted protein sequences when enabled.
+- Optionally, no extra reference resource for SignalP; it runs from extracted protein sequences when enabled, but the configured container must be available.
 
 The user does **not** need to manually install FastQC, fastp, Salmon, SRA Toolkit, MultiQC, Pfam scan, or IsoformSwitchAnalyzeR when using a container profile. Those tools run inside containers selected by the pipeline.
 
@@ -241,6 +243,38 @@ Why the database is not downloaded by default:
 - A prepared database can be reused across many analyses.
 
 There is also an advanced `--pfam_results` option for importing an existing `pfam_scan.pl` result file. This is mainly useful for debugging, development, or rerunning downstream plots without repeating the expensive Pfam scan. Normal users should prefer `--pfam_db`.
+
+## Optional IUPred2A Prerequisites
+
+IUPred2A annotation is optional and enabled with:
+
+```bash
+--run_iupred2a
+```
+
+It does not require a separate biological reference database. The pipeline extracts protein sequences from the ISAR object and runs IUPred2A/ANCHOR2 in a container.
+
+The main practical prerequisite is container availability. The current implementation uses the `btrspg/iupred2a:2a` container image. On a VM or HPC system, make sure the container can be pulled or has been pre-cached.
+
+Current implementation note: this third-party image is minimal and does not include `ps`, which Nextflow uses for runtime metrics. Runs with `--run_iupred2a` currently disable Nextflow trace/timeline/report generation to avoid failing inside this container. Other pipeline information outputs, such as parameters and DAG files, can still be emitted. Before a polished public release, this should ideally be replaced by a pinned container image that already contains the runtime and Nextflow metric dependencies.
+
+IUPred2A predicts intrinsically disordered regions. ANCHOR2 predicts disordered binding regions. These annotations help interpret whether an isoform switch may alter flexible protein regions or binding-related regions.
+
+## Optional SignalP Prerequisites
+
+SignalP annotation is optional and enabled with:
+
+```bash
+--run_signalp
+```
+
+It does not require a separate biological reference database. The pipeline extracts protein sequences from the ISAR object and runs SignalP 5 in eukaryotic mode in a container.
+
+The main practical prerequisite is container availability. The current implementation uses the `btrspg/signalp:5.0b` container image. SignalP has historically had more restrictive distribution/licensing expectations than fully open bioinformatics tools, so the container and license situation should be checked for the target environment before relying on it in a public release.
+
+Current implementation note: this third-party image is minimal and does not include `ps`, which Nextflow uses for runtime metrics. Runs with `--run_signalp` currently disable Nextflow trace/timeline/report generation to avoid failing inside this container. Other pipeline information outputs, such as parameters and DAG files, can still be emitted. Before a polished public release, this should ideally be replaced by a pinned container image that already contains the runtime and Nextflow metric dependencies.
+
+SignalP predicts signal peptides. A signal peptide is a short protein segment that can route a protein into the secretory pathway or toward membrane-associated processing.
 
 ## Compute and Storage Expectations
 
