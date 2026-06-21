@@ -170,6 +170,16 @@ run_iupred2a: false
 iupred2a_top_n: 25
 run_signalp: false
 signalp_top_n: 25
+run_deeptmhmm: false
+deeptmhmm_top_n: 25
+run_deeploc2: false
+deeploc2_top_n: 25
+run_annotated_switch_plots: false
+annotated_switch_top_n: 10
+annotated_switch_genes: null
+annotated_switch_condition1: null
+annotated_switch_condition2: null
+annotated_switch_plot_topology: true
 outdir: './results/'
 <...>
 ```

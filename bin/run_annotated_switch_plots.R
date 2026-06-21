@@ -1,0 +1,276 @@
+#!/usr/bin/env Rscript
+
+suppressPackageStartupMessages(library(IsoformSwitchAnalyzeR))
+suppressPackageStartupMessages(library(ggplot2))
+
+args <- commandArgs(trailingOnly = TRUE)
+
+usage <- paste(
+    "Usage:",
+    "Rscript run_annotated_switch_plots.R",
+    "<switchAnalyzeRlist_rds_or_dir> <outdir> [n_top] [genes_csv] [condition1] [condition2] [plot_topology]",
+    "",
+    "genes_csv is optional and can be a comma-separated list such as ZNRF3,PBX3.",
+    "If genes_csv is '-', the script selects the top n_top genes by gene_switch_q_value.",
+    "plot_topology is optional and can be true or false.",
+    sep = "\n"
+)
+
+if (length(args) < 2 || length(args) > 7) {
+    stop(usage, call. = FALSE)
+}
+
+first_existing <- function(paths) {
+    hits <- paths[file.exists(paths)]
+    if (length(hits) == 0) NULL else hits[[1]]
+}
+
+input_path <- normalizePath(args[[1]], mustWork = TRUE)
+rds_path <- if (dir.exists(input_path)) {
+    first_existing(file.path(
+        input_path,
+        c(
+            "switchAnalyzeRlist_with_deeploc2.rds",
+            "switchAnalyzeRlist_with_deeptmhmm.rds",
+            "switchAnalyzeRlist_with_signalp.rds",
+            "switchAnalyzeRlist_with_iupred2a.rds",
+            "switchAnalyzeRlist_with_pfam_consequences.rds",
+            "switchAnalyzeRlist_with_pfam.rds",
+            "switchAnalyzeRlist_analyzed.rds",
+            "switchAnalyzeRlist.rds",
+            "switchAnalyzeRlist_imported.rds"
+        )
+    ))
+} else {
+    input_path
+}
+if (is.null(rds_path)) {
+    stop("No switchAnalyzeRlist RDS file found in: ", input_path, call. = FALSE)
+}
+outdir <- args[[2]]
+n_top <- if (length(args) >= 3) as.integer(args[[3]]) else 10
+genes_arg <- if (length(args) >= 4) args[[4]] else "-"
+condition1_arg <- if (length(args) >= 5) args[[5]] else NA_character_
+condition2_arg <- if (length(args) >= 6) args[[6]] else NA_character_
+plot_topology <- if (length(args) >= 7) {
+    tolower(args[[7]]) %in% c("true", "t", "1", "yes", "y")
+} else {
+    TRUE
+}
+
+if (is.na(n_top) || n_top < 1) {
+    stop("n_top must be a positive integer.", call. = FALSE)
+}
+
+dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
+
+safe_filename <- function(x) {
+    x <- gsub("[^A-Za-z0-9._-]+", "_", x)
+    x[x == ""] <- "unknown"
+    x
+}
+
+format_q <- function(q) {
+    q <- suppressWarnings(as.numeric(q))
+    ifelse(is.na(q), "NA", formatC(q, format = "e", digits = 2))
+}
+
+has_nonempty_entry <- function(x, entry_name) {
+    entry_name %in% names(x) && !is.null(x[[entry_name]]) && NROW(x[[entry_name]]) > 0
+}
+
+has_nonempty_column <- function(x, column_name) {
+    column_name %in% colnames(x$isoformFeatures) &&
+        any(!is.na(x$isoformFeatures[[column_name]]) & x$isoformFeatures[[column_name]] != "")
+}
+
+message("Loading switchAnalyzeRlist: ", rds_path)
+switch_list <- readRDS(rds_path)
+
+features <- switch_list$isoformFeatures
+required_cols <- c("gene_id", "gene_name", "condition_1", "condition_2", "gene_switch_q_value")
+missing_cols <- setdiff(required_cols, colnames(features))
+if (length(missing_cols) > 0) {
+    stop("isoformFeatures is missing required columns: ", paste(missing_cols, collapse = ", "), call. = FALSE)
+}
+
+features$gene_switch_q_value <- suppressWarnings(as.numeric(features$gene_switch_q_value))
+features$isoform_switch_q_value <- suppressWarnings(as.numeric(features$isoform_switch_q_value))
+features$dIF <- suppressWarnings(as.numeric(features$dIF))
+features$abs_dIF <- abs(features$dIF)
+
+condition1 <- if (!is.na(condition1_arg) && nzchar(condition1_arg)) condition1_arg else features$condition_1[[1]]
+condition2 <- if (!is.na(condition2_arg) && nzchar(condition2_arg)) condition2_arg else features$condition_2[[1]]
+
+comparison_features <- features[
+    features$condition_1 == condition1 & features$condition_2 == condition2,
+    ,
+    drop = FALSE
+]
+if (nrow(comparison_features) == 0) {
+    stop(sprintf("No isoforms found for comparison %s vs %s.", condition1, condition2), call. = FALSE)
+}
+
+if (!is.na(genes_arg) && nzchar(genes_arg) && genes_arg != "-") {
+    genes_to_plot <- trimws(strsplit(genes_arg, ",", fixed = TRUE)[[1]])
+    genes_to_plot <- genes_to_plot[nzchar(genes_to_plot)]
+} else {
+    gene_summary <- unique(comparison_features[, c("gene_id", "gene_name", "gene_switch_q_value"), drop = FALSE])
+    gene_summary <- gene_summary[order(gene_summary$gene_switch_q_value), , drop = FALSE]
+    genes_to_plot <- head(gene_summary$gene_id, n_top)
+}
+
+gene_summary <- unique(comparison_features[, c("gene_id", "gene_name", "gene_switch_q_value"), drop = FALSE])
+gene_summary <- gene_summary[gene_summary$gene_id %in% genes_to_plot | gene_summary$gene_name %in% genes_to_plot, , drop = FALSE]
+gene_summary <- gene_summary[order(gene_summary$gene_switch_q_value), , drop = FALSE]
+gene_summary$gene_switch_q_value_formatted <- format_q(gene_summary$gene_switch_q_value)
+utils::write.csv(gene_summary, file.path(outdir, "annotated_switch_plot_genes.csv"), row.names = FALSE)
+
+annotation_status <- data.frame(
+    annotation = c(
+        "ORF/PTC",
+        "Pfam protein domains",
+        "SignalP signal peptide",
+        "IUPred2A/NetSurfP IDR",
+        "DeepLoc2 subcellular location",
+        "DeepTMHMM topology"
+    ),
+    status = c(
+        ifelse(has_nonempty_entry(switch_list, "orfAnalysis"), "available", "missing"),
+        ifelse(has_nonempty_entry(switch_list, "domainAnalysis"), "available", "missing"),
+        ifelse(has_nonempty_entry(switch_list, "signalPeptideAnalysis"), "available", "missing"),
+        ifelse(has_nonempty_entry(switch_list, "idrAnalysis"), "available", "missing"),
+        ifelse(has_nonempty_column(switch_list, "sub_cell_location"), "available", "missing"),
+        ifelse(has_nonempty_entry(switch_list, "topologyAnalysis"), "available", "missing")
+    ),
+    stringsAsFactors = FALSE
+)
+utils::write.csv(annotation_status, file.path(outdir, "annotation_status.csv"), row.names = FALSE)
+
+plot_records <- list()
+for (i in seq_along(genes_to_plot)) {
+    gene <- genes_to_plot[[i]]
+    gene_rows <- comparison_features[
+        comparison_features$gene_id == gene | comparison_features$gene_name == gene,
+        ,
+        drop = FALSE
+    ]
+    if (nrow(gene_rows) == 0) {
+        warning("Skipping gene not found in comparison: ", gene)
+        next
+    }
+
+    gene_id <- gene_rows$gene_id[[1]]
+    gene_name <- gene_rows$gene_name[[1]]
+    label <- if (!is.na(gene_name) && nzchar(gene_name)) gene_name else gene_id
+    file_prefix <- sprintf("%02d_%s_annotated_switch", i, safe_filename(label))
+    pdf_path <- file.path(outdir, paste0(file_prefix, ".pdf"))
+    png_path <- file.path(outdir, paste0(file_prefix, ".png"))
+
+    draw_plot <- function(use_topology) {
+        switchPlot(
+            switchAnalyzeRlist = switch_list,
+            gene = gene_id,
+            condition1 = condition1,
+            condition2 = condition2,
+            IFcutoff = 0.05,
+            dIFcutoff = 0.1,
+            alphas = c(0.05, 0.001),
+            plotTopology = use_topology,
+            localTheme = ggplot2::theme_bw(base_size = 12)
+        )
+    }
+
+    render_plot <- function(device_label) {
+        tryCatch({
+            draw_plot(plot_topology)
+        }, error = function(err) {
+            if (plot_topology) {
+                warning(
+                    "Could not plot ", device_label, " for ", label,
+                    " with topology enabled. Retrying without topology: ",
+                    conditionMessage(err)
+                )
+                tryCatch({
+                    draw_plot(FALSE)
+                }, error = function(fallback_err) {
+                    plot.new()
+                    title(main = paste("Could not plot", label))
+                    text(0.5, 0.5, conditionMessage(fallback_err))
+                    warning("Could not plot ", device_label, " for ", label, ": ", conditionMessage(fallback_err))
+                })
+            } else {
+                plot.new()
+                title(main = paste("Could not plot", label))
+                text(0.5, 0.5, conditionMessage(err))
+                warning("Could not plot ", device_label, " for ", label, ": ", conditionMessage(err))
+            }
+        })
+    }
+
+    message("Plotting ", label, " -> ", pdf_path)
+    pdf(file = pdf_path, onefile = FALSE, width = 12, height = 7)
+    render_plot("PDF")
+    dev.off()
+
+    png(filename = png_path, width = 2400, height = 1400, res = 200)
+    render_plot("PNG")
+    dev.off()
+
+    best_isoform <- gene_rows[order(gene_rows$isoform_switch_q_value, -gene_rows$abs_dIF), , drop = FALSE][1, ]
+    plot_records[[length(plot_records) + 1]] <- data.frame(
+        gene_id = gene_id,
+        gene_name = label,
+        condition_1 = condition1,
+        condition_2 = condition2,
+        gene_switch_q_value = gene_rows$gene_switch_q_value[[1]],
+        gene_switch_q_value_formatted = format_q(gene_rows$gene_switch_q_value[[1]]),
+        strongest_isoform_id = best_isoform$isoform_id,
+        strongest_isoform_q_value = best_isoform$isoform_switch_q_value,
+        strongest_isoform_q_value_formatted = format_q(best_isoform$isoform_switch_q_value),
+        strongest_isoform_dIF = best_isoform$dIF,
+        pdf_file = basename(pdf_path),
+        png_file = basename(png_path),
+        stringsAsFactors = FALSE
+    )
+}
+
+plot_table <- if (length(plot_records) > 0) do.call(rbind, plot_records) else NULL
+if (!is.null(plot_table) && nrow(plot_table) > 0) {
+    utils::write.csv(plot_table, file.path(outdir, "annotated_switch_plot_summary.csv"), row.names = FALSE)
+} else {
+    utils::write.csv(
+        data.frame(
+            gene_id = character(),
+            gene_name = character(),
+            condition_1 = character(),
+            condition_2 = character(),
+            gene_switch_q_value = numeric(),
+            pdf_file = character(),
+            png_file = character()
+        ),
+        file.path(outdir, "annotated_switch_plot_summary.csv"),
+        row.names = FALSE
+    )
+}
+
+notes <- c(
+    "Annotated ISAR switch plot summary",
+    sprintf("Input RDS: %s", rds_path),
+    sprintf("Output directory: %s", normalizePath(outdir, mustWork = FALSE)),
+    sprintf("Comparison: %s vs %s", condition1, condition2),
+    sprintf("Topology plotting requested: %s", plot_topology),
+    sprintf("Genes requested/plotted: %s", paste(genes_to_plot, collapse = ", ")),
+    "",
+    "Annotation layers:",
+    sprintf("- %s: %s", annotation_status$annotation, annotation_status$status),
+    "",
+    "Interpretation:",
+    "These plots are generated with IsoformSwitchAnalyzeR::switchPlot().",
+    "Protein domains are shown when analyzePFAM() results are present.",
+    "Topology requires analyzeDeepTMHMM() results. Subcellular location requires analyzeDeepLoc2() results.",
+    "IDR tracks require analyzeIUPred2A() or analyzeNetSurfP2() results. Signal peptides require analyzeSignalP() results."
+)
+writeLines(notes, file.path(outdir, "annotated_switch_plot_notes.txt"))
+
+message("Wrote annotated switch plots to: ", outdir)

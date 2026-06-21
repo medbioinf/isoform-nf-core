@@ -18,6 +18,8 @@ For the normal reproducible path, the user should bring:
 - Optionally, a prepared Pfam database directory if Pfam domain annotation should be run.
 - Optionally, no extra reference resource for IUPred2A; it runs from extracted protein sequences when enabled.
 - Optionally, no extra reference resource for SignalP; it runs from extracted protein sequences when enabled, but the configured container must be available.
+- Optionally, no extra reference resource for DeepTMHMM; it runs from extracted protein sequences when enabled, but it is compute-heavy.
+- Optionally, no extra reference resource for DeepLoc2; it runs from extracted protein sequences when enabled, but first use may download model assets.
 
 The user does **not** need to manually install FastQC, fastp, Salmon, SRA Toolkit, MultiQC, Pfam scan, or IsoformSwitchAnalyzeR when using a container profile. Those tools run inside containers selected by the pipeline.
 
@@ -276,6 +278,34 @@ Current implementation note: this third-party image is minimal and does not incl
 
 SignalP predicts signal peptides. A signal peptide is a short protein segment that can route a protein into the secretory pathway or toward membrane-associated processing.
 
+## Optional DeepTMHMM Prerequisites
+
+DeepTMHMM annotation is optional and enabled with:
+
+```bash
+--run_deeptmhmm
+```
+
+It does not require a separate biological reference database. The pipeline extracts protein sequences from the ISAR object, runs DeepTMHMM in a container, converts the three-line topology output, and imports the converted regions into IsoformSwitchAnalyzeR.
+
+The main practical prerequisite is container availability. The current implementation uses the `docker.io/deeptmhmm/deeptmhmm:latest` container image.
+
+DeepTMHMM is computationally heavier than lightweight plotting. In the GSE50760 4-vs-4 validation subset, DeepTMHMM processed 2958 protein sequences and dominated the optional annotation runtime. Treat it as an interpretation module for selected real analyses, not as a default quick smoke-test step.
+
+## Optional DeepLoc2 Prerequisites
+
+DeepLoc2 annotation is optional and enabled with:
+
+```bash
+--run_deeploc2
+```
+
+It does not require a separate biological reference database. The pipeline extracts protein sequences from the ISAR object, runs DeepLoc2 in a container, converts the prediction table, and imports localization labels into IsoformSwitchAnalyzeR.
+
+The main practical prerequisite is container availability. The current implementation uses the `docker.io/hannharris/deeploc2.1:latest` container image.
+
+DeepLoc2 may download model assets on first use, depending on the container cache state. Make sure the run environment has either network access for the first run or pre-cached model/container assets.
+
 ## Compute and Storage Expectations
 
 The pipeline can run small tests on a laptop, but real RNA-seq datasets are better run on a VM or HPC system.
@@ -288,8 +318,10 @@ Expect disk usage from:
 - Salmon indices and quantification outputs
 - ISAR result objects
 - optional Pfam scan outputs
+- optional DeepTMHMM embeddings and topology outputs
+- optional DeepLoc2 model cache and prediction outputs
 
-Pfam scanning can be noticeably slower than lightweight plotting steps. In our GSE50760 validation subset, the real Pfam scan and import were substantial enough to treat Pfam as an annotation module, not just a tiny visualization add-on.
+Pfam scanning, DeepTMHMM, and DeepLoc2 can be noticeably slower than lightweight plotting steps. In our GSE50760 validation subsets, these were substantial enough to treat them as annotation modules, not tiny visualization add-ons.
 
 Practical advice:
 
@@ -340,6 +372,22 @@ nextflow run Anton-Bch/isoform-nf-core \
     -profile docker
 ```
 
+With DeepTMHMM, DeepLoc2, and annotated switch plots:
+
+```bash
+nextflow run Anton-Bch/isoform-nf-core \
+    --input samplesheet.csv \
+    --contrasts contrasts.csv \
+    --transcript_fasta reference/transcripts.fa.gz \
+    --genome_fasta reference/genome.fa.gz \
+    --gtf reference/annotation.gtf.gz \
+    --run_deeptmhmm \
+    --run_deeploc2 \
+    --run_annotated_switch_plots \
+    --outdir results \
+    -profile docker
+```
+
 ## What Users Do Not Need to Install Manually
 
 When using a container profile, users do not need local installations of:
@@ -352,5 +400,7 @@ When using a container profile, users do not need local installations of:
 - IsoformSwitchAnalyzeR
 - Pfam scan
 - HMMER
+- DeepTMHMM
+- DeepLoc2
 
 The user provides data and references. The pipeline provides the workflow logic and launches the required tools in containers.

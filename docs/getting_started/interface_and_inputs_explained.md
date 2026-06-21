@@ -540,6 +540,92 @@ Default:
 
 Controls how many high-ranking switch candidates are listed in the SignalP preparation table.
 
+### `--run_deeptmhmm`
+
+Default:
+
+```text
+false
+```
+
+Controls whether the pipeline runs optional DeepTMHMM transmembrane topology annotation on significant isoform switch candidates.
+
+When enabled, the pipeline extracts amino-acid FASTA sequences from significant switch candidates, runs DeepTMHMM, converts the three-line topology output into the format expected by IsoformSwitchAnalyzeR, and imports the result with `analyzeDeepTMHMM()`.
+
+### `--deeptmhmm_top_n`
+
+Default:
+
+```text
+25
+```
+
+Controls how many high-ranking switch candidates are listed in the DeepTMHMM preparation table.
+
+### `--run_deeploc2`
+
+Default:
+
+```text
+false
+```
+
+Controls whether the pipeline runs optional DeepLoc2 subcellular localization annotation on significant isoform switch candidates.
+
+When enabled, the pipeline extracts amino-acid FASTA sequences from significant switch candidates, runs DeepLoc2, converts the prediction table into the format expected by IsoformSwitchAnalyzeR, and imports the result with `analyzeDeepLoc2()`.
+
+### `--deeploc2_top_n`
+
+Default:
+
+```text
+25
+```
+
+Controls how many high-ranking switch candidates are listed in the DeepLoc2 preparation table.
+
+### `--run_annotated_switch_plots`
+
+Default:
+
+```text
+false
+```
+
+Controls whether the pipeline creates annotated IsoformSwitchAnalyzeR `switchPlot()` outputs after the optional annotation modules. This step uses the newest available annotated ISAR object, so running DeepTMHMM and DeepLoc2 before it makes topology and localization tracks available in the plots.
+
+### `--annotated_switch_top_n`
+
+Default:
+
+```text
+10
+```
+
+Controls how many top switching genes are plotted when `--annotated_switch_genes` is not provided.
+
+### `--annotated_switch_genes`
+
+Optional comma-separated gene list for annotated switch plots.
+
+Use this when you want specific genes instead of the top-ranked genes selected from the ISAR result.
+
+### `--annotated_switch_condition1` and `--annotated_switch_condition2`
+
+Optional condition names for annotated switch plots.
+
+If unset, the plotting script uses the comparison stored in the ISAR object. These options are useful when an ISAR object contains more than one comparison and the desired contrast should be explicit.
+
+### `--annotated_switch_plot_topology`
+
+Default:
+
+```text
+true
+```
+
+Controls whether topology tracks are requested from `switchPlot()` when DeepTMHMM annotations are available.
+
 ## MultiQC Options
 
 ### `--multiqc_title`
@@ -606,6 +692,6 @@ Known limitations:
 - SRA mode requires run accessions and does not resolve `GSE` or `GSM` accessions automatically.
 - Novel isoform discovery is not part of V1.
 - Long-read RNA-seq input is not part of V1.
-- Visualization options from the prototype pipeline are not yet exposed.
+- Some visualization options from the prototype pipeline are still being transferred module by module.
 
 These limitations are not necessarily design flaws. They keep the first reusable version understandable and testable.

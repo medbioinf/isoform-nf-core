@@ -26,6 +26,14 @@
 
 > Almagro Armenteros JJ, Tsirigos KD, Sønderby CK, Petersen TN, Winther O, Brunak S, von Heijne G, Nielsen H. SignalP 5.0 improves signal peptide predictions using deep neural networks. Nat Biotechnol. 2019;37:420-423. doi: 10.1038/s41587-019-0036-z.
 
+- [DeepTMHMM](https://doi.org/10.1101/2022.04.08.487609)
+
+> Hallgren J, Tsirigos KD, Pedersen MD, Almagro Armenteros JJ, Marcatili P, Nielsen H, Krogh A, Winther O. DeepTMHMM predicts alpha and beta transmembrane proteins using deep neural networks. bioRxiv. 2022. doi: 10.1101/2022.04.08.487609.
+
+- [DeepLoc 2.0](https://pubmed.ncbi.nlm.nih.gov/35489069/)
+
+> Thumuluri V, Almagro Armenteros JJ, Johansen AR, Nielsen H, Winther O. DeepLoc 2.0: multi-label subcellular localization prediction using protein language models. Nucleic Acids Res. 2022 Jul 5;50(W1):W228-W234. doi: 10.1093/nar/gkac278. PubMed PMID: 35489069.
+
 ## Software packaging/containerisation tools
 
 - [Anaconda](https://anaconda.com)

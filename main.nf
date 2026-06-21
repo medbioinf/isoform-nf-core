@@ -57,6 +57,13 @@ workflow ISOFORM_NF_CORE {
     signalp_prepare_results = ISOFORM.out.signalp_prepare_results
     signalp_run_results = ISOFORM.out.signalp_run_results
     signalp_import_results = ISOFORM.out.signalp_import_results
+    deeptmhmm_prepare_results = ISOFORM.out.deeptmhmm_prepare_results
+    deeptmhmm_run_results = ISOFORM.out.deeptmhmm_run_results
+    deeptmhmm_import_results = ISOFORM.out.deeptmhmm_import_results
+    deeploc2_prepare_results = ISOFORM.out.deeploc2_prepare_results
+    deeploc2_run_results = ISOFORM.out.deeploc2_run_results
+    deeploc2_import_results = ISOFORM.out.deeploc2_import_results
+    annotated_switch_plot_results = ISOFORM.out.annotated_switch_plot_results
     multiqc_report = ISOFORM.out.multiqc_report // channel: /path/to/multiqc_report.html
 }
 /*

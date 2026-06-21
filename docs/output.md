@@ -20,6 +20,9 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and processes d
 - [Pfam annotation](#pfam-annotation) - Optional protein-domain annotation for significant switch candidates
 - [IUPred2A annotation](#iupred2a-annotation) - Optional intrinsically disordered region and ANCHOR2 annotation
 - [SignalP annotation](#signalp-annotation) - Optional signal peptide annotation
+- [DeepTMHMM annotation](#deeptmhmm-annotation) - Optional transmembrane topology annotation
+- [DeepLoc2 annotation](#deeploc2-annotation) - Optional subcellular localization annotation
+- [Annotated switch plots](#annotated-switch-plots) - Optional IsoformSwitchAnalyzeR switch plots with available annotation tracks
 - [MultiQC](#multiqc) - Aggregate report describing results and QC from the whole pipeline
 - [Pipeline information](#pipeline-information) - Report metrics generated during the workflow execution
 
@@ -201,6 +204,63 @@ SignalP support is optional and controlled by `--run_signalp`. It predicts signa
   - `signalp_import_notes.txt`: import summary and interpretation notes.
 
 SignalP container and licensing suitability should be checked for the target environment before treating it as a fully portable public pipeline dependency.
+
+### DeepTMHMM annotation
+
+DeepTMHMM support is optional and controlled by `--run_deeptmhmm`. It predicts transmembrane topology regions in proteins from significant isoform switch candidates.
+
+- `deeptmhmm/deeptmhmm_prepare/`
+  - `isoform_deeptmhmm_candidates_AA.fasta`: amino-acid FASTA used as DeepTMHMM input.
+  - `deeptmhmm_top_candidates.csv`: strongest isoform switch candidates selected for inspection.
+  - `switchAnalyzeRlist_with_sequences.rds`: ISAR object after sequence extraction, when sequence extraction succeeds.
+  - `deeptmhmm_prepare_notes.txt`: summary of candidate and FASTA generation.
+- `deeptmhmm/deeptmhmm/`
+  - `predicted_topologies.3line`: raw DeepTMHMM three-line topology output.
+  - `deeptmhmm_regions_isar.tsv`: converted topology regions imported by IsoformSwitchAnalyzeR.
+  - `deeptmhmm.log`: DeepTMHMM run log.
+- `deeptmhmm/deeptmhmm_import/`
+  - `switchAnalyzeRlist_with_deeptmhmm.rds`: ISAR object after `analyzeDeepTMHMM()`.
+  - `deeptmhmm_topology_analysis.csv`: imported topology region table.
+  - `isoform_features_with_deeptmhmm.csv`: isoform feature table after topology import.
+  - `deeptmhmm_summary.png` / `.pdf` / `.csv`: overview of topology annotation availability.
+  - `deeptmhmm_import_notes.txt`: import summary and interpretation notes.
+
+DeepTMHMM can be slow on real datasets because it embeds protein sequences before topology prediction. Keep it optional for routine quantification-only runs.
+
+### DeepLoc2 annotation
+
+DeepLoc2 support is optional and controlled by `--run_deeploc2`. It predicts subcellular localization labels for proteins from significant isoform switch candidates.
+
+- `deeploc2/deeploc2_prepare/`
+  - `isoform_deeploc2_candidates_AA.fasta`: amino-acid FASTA used as DeepLoc2 input.
+  - `deeploc2_top_candidates.csv`: strongest isoform switch candidates selected for inspection.
+  - `switchAnalyzeRlist_with_sequences.rds`: ISAR object after sequence extraction, when sequence extraction succeeds.
+  - `deeploc2_prepare_notes.txt`: summary of candidate and FASTA generation.
+- `deeploc2/deeploc2/`
+  - `results_*.csv`: raw DeepLoc2 prediction table.
+  - `deeploc2_isar.csv`: converted prediction table imported by IsoformSwitchAnalyzeR.
+  - `deeploc2.log`: DeepLoc2 run log.
+- `deeploc2/deeploc2_import/`
+  - `switchAnalyzeRlist_with_deeploc2.rds`: ISAR object after `analyzeDeepLoc2()`.
+  - `deeploc2_location_analysis.csv`: imported localization table.
+  - `isoform_features_with_deeploc2.csv`: isoform feature table after localization import.
+  - `deeploc2_summary.png` / `.pdf` / `.csv`: overview of imported localization labels.
+  - `deeploc2_import_notes.txt`: import summary and interpretation notes.
+
+DeepLoc2 may download model assets on first use, depending on the container cache state. Plan for network access and additional runtime on the first run.
+
+### Annotated switch plots
+
+Annotated switch plots are optional and controlled by `--run_annotated_switch_plots`. This step uses the newest available annotated IsoformSwitchAnalyzeR object from the optional annotation chain and renders `switchPlot()` pages for selected switching genes.
+
+- `annotated/annotated_switch_plots/`
+  - `*_annotated_switch.png` / `.pdf`: per-gene annotated switch plots.
+  - `annotated_switch_plot_genes.csv`: genes selected for plotting.
+  - `annotated_switch_plot_summary.csv`: plotted genes, strongest isoforms, q-values, dIF values, and output filenames.
+  - `annotation_status.csv`: which annotation layers were available for the plot run.
+  - `annotated_switch_plot_notes.txt`: run summary, selected comparison, and interpretation notes.
+
+The available tracks depend on which optional annotation modules were run before this step. ORF/PTC information comes from the base ISAR object. Pfam, SignalP, IUPred2A, DeepTMHMM, and DeepLoc2 tracks appear only when their corresponding annotations have been imported.
 
 ### MultiQC
 

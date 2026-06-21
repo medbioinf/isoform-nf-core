@@ -52,7 +52,17 @@ dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
 
 rds_path <- first_existing(file.path(
     isar_dir,
-    c("switchAnalyzeRlist_analyzed.rds", "switchAnalyzeRlist.rds", "switchAnalyzeRlist_imported.rds")
+    c(
+        "switchAnalyzeRlist_with_deeploc2.rds",
+        "switchAnalyzeRlist_with_deeptmhmm.rds",
+        "switchAnalyzeRlist_with_signalp.rds",
+        "switchAnalyzeRlist_with_iupred2a.rds",
+        "switchAnalyzeRlist_with_pfam_consequences.rds",
+        "switchAnalyzeRlist_with_pfam.rds",
+        "switchAnalyzeRlist_analyzed.rds",
+        "switchAnalyzeRlist.rds",
+        "switchAnalyzeRlist_imported.rds"
+    )
 ))
 
 if (is.null(rds_path)) {

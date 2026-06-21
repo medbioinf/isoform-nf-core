@@ -478,6 +478,109 @@ results/gse50760_4v4_signalp_full_validation_copy/
 
 The copied files include selected SignalP import outputs, raw SignalP output, pipeline parameters, and the DAG. They are local inspection artifacts and remain outside version control.
 
+## DeepTMHMM, DeepLoc2, and Annotated Switch Plots
+
+Implementation area:
+
+- extraction of amino-acid sequences from significant ISAR switch candidates
+- running DeepTMHMM and converting its three-line topology output for IsoformSwitchAnalyzeR
+- running DeepLoc2 and converting its localization table for IsoformSwitchAnalyzeR
+- chaining optional annotation imports so later imports preserve earlier annotation layers
+- creating annotated `switchPlot()` outputs from the newest available annotated ISAR object
+
+Implementation status:
+
+- Added optional modules controlled by `--run_deeptmhmm`, `--run_deeploc2`, and `--run_annotated_switch_plots`.
+- Added dedicated preparation, run, and import modules for DeepTMHMM and DeepLoc2.
+- Added converter scripts based on the GSE50760 prototype output formats.
+- Added annotated switch plots with automatic annotation-layer status reporting.
+- Updated the annotation import scripts so Pfam, IUPred2A, SignalP, DeepTMHMM, and DeepLoc2 can be chained without discarding previous annotations.
+
+Validation performed locally:
+
+- Python syntax check for the DeepTMHMM and DeepLoc2 converter scripts.
+- `git diff --check`.
+
+Validation performed on the VM:
+
+```bash
+nextflow config -profile test,docker
+nextflow run . -profile test,docker -stub-run -resume \
+    --run_deeptmhmm true \
+    --run_deeploc2 true \
+    --run_annotated_switch_plots true \
+    --outdir results/test_milestone_b_stub3 \
+    -work-dir work_test_milestone_b_stub3
+```
+
+After the documentation refresh, the same graph was sanity-checked again on the VM with:
+
+```bash
+nextflow config -profile test,docker
+nextflow run . -profile test,docker -stub-run -resume \
+    --run_deeptmhmm \
+    --run_deeploc2 \
+    --run_annotated_switch_plots \
+    --outdir results/test_milestone_b_stub_final \
+    -work-dir work_test_milestone_b_stub_final
+```
+
+Outcome:
+
+- Passed.
+- `DEEPTMHMM_PREPARE`, `DEEPTMHMM_RUN`, `DEEPTMHMM_IMPORT`, `DEEPLOC2_PREPARE`, `DEEPLOC2_RUN`, `DEEPLOC2_IMPORT`, `ANNOTATED_SWITCH_PLOTS`, and `MULTIQC` completed in stub mode.
+
+Full real-data validation performed on the VM:
+
+```bash
+nextflow run . -profile docker -resume \
+    --input assets/gse50760_4v4_existing_fastp_samplesheet.csv \
+    --contrasts assets/gse50760_primary_crc_vs_normal_colon.csv \
+    --transcript_fasta ../nextflow-studienprojekt/gse50760/reference/gencode.v49.transcripts.fa.gz \
+    --gtf ../nextflow-studienprojekt/gse50760/reference/gencode.v49.chr_patch_hapl_scaff.annotation.gtf.gz \
+    --run_deeptmhmm true \
+    --run_deeploc2 true \
+    --run_annotated_switch_plots true \
+    --annotated_switch_top_n 5 \
+    --outdir results/gse50760_4v4_milestone_b_full_validation \
+    --multiqc_title GSE50760_4v4_milestone_b_full_validation \
+    -work-dir work_gse50760_4v4_milestone_b_full_validation
+```
+
+The validation samplesheet reused existing GSE50760 fastp FASTQs on the VM to avoid repeating SRA download and trimming. This still exercised the real Salmon, ISAR, DeepTMHMM preparation/run/import, DeepLoc2 preparation/run/import, annotated switch plots, and MultiQC path.
+
+Key results:
+
+- Full run completed successfully on 2026-06-21.
+- GSE50760 4-vs-4 ISAR analysis found 521 significant isoform candidates, 447 switches, and 476 switching genes for `normal_colon vs primary_crc`.
+- DeepTMHMM preparation wrote 2958 amino-acid FASTA records.
+- DeepTMHMM produced `predicted_topologies.3line` and `deeptmhmm_regions_isar.tsv`; the converted topology file contained 7049 imported topology rows.
+- DeepLoc2 preparation wrote 2958 amino-acid FASTA records.
+- DeepLoc2 produced `results_20260621-113336.csv` and `deeploc2_isar.csv`; DeepLoc2 import added `sub_cell_location` values for 2842 isoforms.
+- Annotated switch plots were generated for ATP8B1, AMFR, EPB41L1, TEX2, and DSC2.
+- `annotation_status.csv` reported ORF/PTC, DeepLoc2, and DeepTMHMM as available; Pfam, SignalP, and IUPred2A were correctly reported as missing because they were not enabled in this validation run.
+
+Issues discovered and fixed:
+
+- The DeepLoc2 image has an entrypoint that interfered with Nextflow command execution and even stub commands. The module now clears the container entrypoint and sets writable `HOME` and `MPLCONFIGDIR` paths.
+- DeepTMHMM could not run directly in `/openprotein` because it needs writable working directories. The module now creates a writable work directory and symlinks the model/runtime assets.
+- DeepTMHMM's bundled `predict.py` wrote one report to `/deeptmhmm_results.md`, which is not writable in the container. The module patches that path to a relative filename inside the writable work directory before execution.
+- The first DeepTMHMM workdir symlink attempt excluded package directories and triggered `No module named 'experiments'`; the module now symlinks all required `/openprotein` entries except `predict.py`, which is copied and patched.
+
+Runtime notes:
+
+- In this validation run, DeepLoc2 processed 2958 proteins in about 33 minutes and downloaded ESM/model assets on first use.
+- DeepTMHMM processed 2958 proteins with a long embedding phase followed by topology prediction; it dominated the optional annotation runtime.
+- Because these tools are heavy, they should remain optional interpretation modules.
+
+Copied-back local inspection path:
+
+```text
+results/gse50760_4v4_milestone_b_full_validation/
+```
+
+The copied files include selected DeepTMHMM, DeepLoc2, annotated switch plot, ISAR, MultiQC, and pipeline parameter outputs. Large serialized R objects and heavy work-directory intermediates were intentionally left on the VM.
+
 ## Documentation Validation
 
 Implementation area:
@@ -549,6 +652,18 @@ nextflow run . \
     --outdir results/test_signalp_stub
 ```
 
+For changes touching DeepTMHMM, DeepLoc2, or annotated switch plot workflow wiring:
+
+```bash
+nextflow run . \
+    -profile test,docker \
+    -stub-run \
+    --run_deeptmhmm true \
+    --run_deeploc2 true \
+    --run_annotated_switch_plots true \
+    --outdir results/test_milestone_b_stub
+```
+
 For changes touching the real SignalP command or import behavior:
 
 - Run a VM validation on data that emits non-empty amino-acid FASTA input.
@@ -566,5 +681,6 @@ For changes touching SRA mode:
 - Pfam tests require a prepared local Pfam database.
 - Full SignalP validation depends on a usable SignalP container and currently disables Nextflow trace/timeline/report metrics because the configured image lacks `ps`.
 - Full IUPred2A workflow validation is still pending.
+- Full DeepTMHMM and DeepLoc2 validation is manual because the tools are too heavy for ordinary CI.
 - The synthetic fixture is intentionally tiny and cannot prove biological correctness.
 - More nf-test snapshots/assertions should be added once the output contract stabilizes.

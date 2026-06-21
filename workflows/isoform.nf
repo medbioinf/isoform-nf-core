@@ -21,6 +21,13 @@ include { IUPRED2A_IMPORT        } from '../modules/local/iupred2a_import/main'
 include { SIGNALP_PREPARE        } from '../modules/local/signalp_prepare/main'
 include { SIGNALP_RUN            } from '../modules/local/signalp_run/main'
 include { SIGNALP_IMPORT         } from '../modules/local/signalp_import/main'
+include { DEEPTMHMM_PREPARE      } from '../modules/local/deeptmhmm_prepare/main'
+include { DEEPTMHMM_RUN          } from '../modules/local/deeptmhmm_run/main'
+include { DEEPTMHMM_IMPORT       } from '../modules/local/deeptmhmm_import/main'
+include { DEEPLOC2_PREPARE       } from '../modules/local/deeploc2_prepare/main'
+include { DEEPLOC2_RUN           } from '../modules/local/deeploc2_run/main'
+include { DEEPLOC2_IMPORT        } from '../modules/local/deeploc2_import/main'
+include { ANNOTATED_SWITCH_PLOTS } from '../modules/local/annotated_switch_plots/main'
 include { MULTIQC                } from '../modules/nf-core/multiqc/main'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -128,6 +135,13 @@ workflow ISOFORM {
     ch_signalp_prepare_results = channel.empty()
     ch_signalp_run_results = channel.empty()
     ch_signalp_import_results = channel.empty()
+    ch_deeptmhmm_prepare_results = channel.empty()
+    ch_deeptmhmm_run_results = channel.empty()
+    ch_deeptmhmm_import_results = channel.empty()
+    ch_deeploc2_prepare_results = channel.empty()
+    ch_deeploc2_run_results = channel.empty()
+    ch_deeploc2_import_results = channel.empty()
+    ch_annotated_switch_plot_results = channel.empty()
     if (params.run_isar) {
         ch_analysis_script = channel.value(file("${projectDir}/bin/run_isar_analysis.R", checkIfExists: true))
         ch_input_samplesheet = ch_metadata_file
@@ -145,6 +159,7 @@ workflow ISOFORM {
             ch_transcript_fasta
         )
         ch_isar_results = ISAR_ANALYSIS.out.results
+        ch_current_annotated_isar = ISAR_ANALYSIS.out.results
 
         if (params.run_isar_visualization) {
             ch_visualization_script = channel.value(file("${projectDir}/bin/run_isar_visualization.R", checkIfExists: true))
@@ -180,10 +195,11 @@ workflow ISOFORM {
                 PFAM_SCAN.out.results
             PFAM_IMPORT (
                 ch_pfam_import_script,
-                ISAR_ANALYSIS.out.results,
+                ch_current_annotated_isar,
                 ch_pfam_results
             )
             ch_pfam_import_results = PFAM_IMPORT.out.results
+            ch_current_annotated_isar = PFAM_IMPORT.out.results
 
             if (params.run_pfam_visualization) {
                 ch_pfam_visualization_script = channel.value(file("${projectDir}/bin/run_pfam_visualization.R", checkIfExists: true))
@@ -214,10 +230,11 @@ workflow ISOFORM {
 
             IUPRED2A_IMPORT (
                 ch_iupred2a_import_script,
-                ISAR_ANALYSIS.out.results,
+                ch_current_annotated_isar,
                 IUPRED2A_RUN.out.results
             )
             ch_iupred2a_import_results = IUPRED2A_IMPORT.out.results
+            ch_current_annotated_isar = IUPRED2A_IMPORT.out.results
         }
 
         if (params.run_signalp) {
@@ -237,10 +254,72 @@ workflow ISOFORM {
 
             SIGNALP_IMPORT (
                 ch_signalp_import_script,
-                ISAR_ANALYSIS.out.results,
+                ch_current_annotated_isar,
                 SIGNALP_RUN.out.results
             )
             ch_signalp_import_results = SIGNALP_IMPORT.out.results
+            ch_current_annotated_isar = SIGNALP_IMPORT.out.results
+        }
+
+        if (params.run_deeptmhmm) {
+            ch_deeptmhmm_prepare_script = channel.value(file("${projectDir}/bin/run_deeptmhmm_prepare.R", checkIfExists: true))
+            ch_deeptmhmm_convert_script = channel.value(file("${projectDir}/bin/convert_deeptmhmm_3line_to_isar.py", checkIfExists: true))
+            ch_deeptmhmm_import_script = channel.value(file("${projectDir}/bin/run_deeptmhmm_import.R", checkIfExists: true))
+
+            DEEPTMHMM_PREPARE (
+                ch_deeptmhmm_prepare_script,
+                ISAR_ANALYSIS.out.results
+            )
+            ch_deeptmhmm_prepare_results = DEEPTMHMM_PREPARE.out.results
+
+            DEEPTMHMM_RUN (
+                DEEPTMHMM_PREPARE.out.aa_fasta,
+                ch_deeptmhmm_convert_script
+            )
+            ch_deeptmhmm_run_results = DEEPTMHMM_RUN.out.results
+
+            DEEPTMHMM_IMPORT (
+                ch_deeptmhmm_import_script,
+                ch_current_annotated_isar,
+                DEEPTMHMM_RUN.out.results
+            )
+            ch_deeptmhmm_import_results = DEEPTMHMM_IMPORT.out.results
+            ch_current_annotated_isar = DEEPTMHMM_IMPORT.out.results
+        }
+
+        if (params.run_deeploc2) {
+            ch_deeploc2_prepare_script = channel.value(file("${projectDir}/bin/run_deeploc2_prepare.R", checkIfExists: true))
+            ch_deeploc2_convert_script = channel.value(file("${projectDir}/bin/convert_deeploc2_to_isar.py", checkIfExists: true))
+            ch_deeploc2_import_script = channel.value(file("${projectDir}/bin/run_deeploc2_import.R", checkIfExists: true))
+
+            DEEPLOC2_PREPARE (
+                ch_deeploc2_prepare_script,
+                ISAR_ANALYSIS.out.results
+            )
+            ch_deeploc2_prepare_results = DEEPLOC2_PREPARE.out.results
+
+            DEEPLOC2_RUN (
+                DEEPLOC2_PREPARE.out.aa_fasta,
+                ch_deeploc2_convert_script
+            )
+            ch_deeploc2_run_results = DEEPLOC2_RUN.out.results
+
+            DEEPLOC2_IMPORT (
+                ch_deeploc2_import_script,
+                ch_current_annotated_isar,
+                DEEPLOC2_RUN.out.results
+            )
+            ch_deeploc2_import_results = DEEPLOC2_IMPORT.out.results
+            ch_current_annotated_isar = DEEPLOC2_IMPORT.out.results
+        }
+
+        if (params.run_annotated_switch_plots) {
+            ch_annotated_switch_plot_script = channel.value(file("${projectDir}/bin/run_annotated_switch_plots.R", checkIfExists: true))
+            ANNOTATED_SWITCH_PLOTS (
+                ch_annotated_switch_plot_script,
+                ch_current_annotated_isar
+            )
+            ch_annotated_switch_plot_results = ANNOTATED_SWITCH_PLOTS.out.results
         }
     }
 
@@ -328,6 +407,13 @@ workflow ISOFORM {
     signalp_prepare_results = ch_signalp_prepare_results // channel: path(signalp_prepare)
     signalp_run_results = ch_signalp_run_results    // channel: path(signalp5_summary.signalp5)
     signalp_import_results = ch_signalp_import_results // channel: path(signalp_import)
+    deeptmhmm_prepare_results = ch_deeptmhmm_prepare_results // channel: path(deeptmhmm_prepare)
+    deeptmhmm_run_results = ch_deeptmhmm_run_results // channel: path(deeptmhmm_regions_isar.tsv)
+    deeptmhmm_import_results = ch_deeptmhmm_import_results // channel: path(deeptmhmm_import)
+    deeploc2_prepare_results = ch_deeploc2_prepare_results // channel: path(deeploc2_prepare)
+    deeploc2_run_results = ch_deeploc2_run_results // channel: path(deeploc2_isar.csv)
+    deeploc2_import_results = ch_deeploc2_import_results // channel: path(deeploc2_import)
+    annotated_switch_plot_results = ch_annotated_switch_plot_results // channel: path(annotated_switch_plots)
     multiqc_report = MULTIQC.out.report.toList()    // channel: /path/to/multiqc_report.html
     versions       = ch_versions                 // channel: [ path(versions.yml) ]
 

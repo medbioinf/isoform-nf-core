@@ -1,0 +1,6 @@
+name: deeploc2_run
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
