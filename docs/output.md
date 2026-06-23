@@ -17,6 +17,7 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and processes d
 - [Salmon](#salmon) - Transcriptome indexing and transcript abundance quantification
 - [IsoformSwitchAnalyzeR](#isoformswitchanalyzer) - Isoform switch import and differential isoform usage analysis
 - [ISAR visualization](#isar-visualization) - Lightweight plots and candidate tables from IsoformSwitchAnalyzeR output
+- [ISAR contrast summary](#isar-contrast-summary) - Cross-comparison bar and UpSet-style plots for significant isoform switches
 - [Pfam annotation](#pfam-annotation) - Optional protein-domain annotation for significant switch candidates
 - [IUPred2A annotation](#iupred2a-annotation) - Optional intrinsically disordered region and ANCHOR2 annotation
 - [SignalP annotation](#signalp-annotation) - Optional signal peptide annotation
@@ -104,6 +105,7 @@ If the samplesheet contains multiple rows with the same `sample` value, the pipe
 - `isar/isar_analysis/`
   - `design_matrix.csv`: sample-to-condition table used by IsoformSwitchAnalyzeR.
   - `quant_dirs.csv`: mapping from sample names to Salmon quantification directories.
+  - `comparisons.csv`: requested pairwise comparisons and their labels, when statistical testing is configured.
   - `filtered_annotation.gtf`: GTF subset containing quantified transcripts.
   - `switchAnalyzeRlist_imported.rds`: imported IsoformSwitchAnalyzeR object before statistical testing.
   - `switchAnalyzeRlist_analyzed.rds`: analyzed IsoformSwitchAnalyzeR object after switch testing, when testing is possible.
@@ -114,7 +116,7 @@ If the samplesheet contains multiple rows with the same `sample` value, the pipe
 
 </details>
 
-[IsoformSwitchAnalyzeR](https://bioconductor.org/packages/IsoformSwitchAnalyzeR/) imports the Salmon transcript estimates together with the sample design and transcript annotation. If the design contains two conditions with at least two samples per condition, the pipeline runs the DEXSeq-based isoform switch test. Smaller smoke-test datasets can still be imported, but statistical switch testing is skipped and this is recorded in `analysis_notes.txt`.
+[IsoformSwitchAnalyzeR](https://bioconductor.org/packages/IsoformSwitchAnalyzeR/) imports the Salmon transcript estimates together with the sample design and transcript annotation. If a contrast file is supplied, the pipeline runs the requested pairwise comparisons in one ISAR analysis when each contrast condition has at least two samples. If no contrast file is supplied, a two-condition dataset is tested as a single comparison. Smaller smoke-test datasets can still be imported, but statistical switch testing is skipped and this is recorded in `analysis_notes.txt`.
 
 ### ISAR visualization
 
@@ -135,6 +137,23 @@ If the samplesheet contains multiple rows with the same `sample` value, the pipe
 </details>
 
 The ISAR visualization step is controlled by `--run_isar_visualization` and `--isar_visualization_top_n`. It is intentionally lightweight and does not require external annotation databases. If the ISAR step only imported data, or if no genes pass the current switch cutoffs, the visualization step exits successfully and writes notes plus empty summary tables instead of failing the workflow.
+
+### ISAR contrast summary
+
+<details markdown="1">
+<summary>Output files</summary>
+
+- `isar/isar_contrast_summary/`
+  - `significant_isoform_switches_per_comparison.csv`: significant isoform-switch counts per comparison.
+  - `significant_isoform_switches_per_comparison.png` / `.pdf`: bar plot of significant isoform switches per comparison.
+  - `isoform_switch_intersections.csv`: largest UpSet-style isoform-switch intersections.
+  - `isoform_switch_intersection_members.csv`: isoforms and genes contributing to each plotted intersection.
+  - `isoform_switch_upset.png` / `.pdf`: UpSet-style intersection plot with left-side set-size bars for significant isoforms per comparison.
+  - `isar_contrast_summary_notes.txt`: summary of inputs and any skipped-output reasons.
+
+</details>
+
+The contrast summary is generated from the analyzed IsoformSwitchAnalyzeR result and uses the configured `--isar_qvalue_cutoff` and `--isar_dif_cutoff`. It is most informative when `--contrasts` contains multiple pairwise comparisons.
 
 ### Pfam annotation
 
@@ -261,6 +280,8 @@ Annotated switch plots are optional and controlled by `--run_annotated_switch_pl
   - `annotated_switch_plot_notes.txt`: run summary, selected comparison, and interpretation notes.
 
 The available tracks depend on which optional annotation modules were run before this step. ORF/PTC information comes from the base ISAR object. Pfam, SignalP, IUPred2A, DeepTMHMM, and DeepLoc2 tracks appear only when their corresponding annotations have been imported.
+
+If `--annotated_switch_genes` is supplied, enabled annotation preparation modules force-include those genes in their protein FASTA target sets. This makes requested gene-level plots more reproducible across runs where the automatic significant-switch candidate list differs slightly.
 
 ### MultiQC
 

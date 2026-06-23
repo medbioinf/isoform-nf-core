@@ -12,6 +12,7 @@ usage <- paste(
     "[--top-n 25]",
     "[--qvalue-cutoff 0.05]",
     "[--dif-cutoff 0.1]",
+    "[--target-genes ZNRF3,PBX3]",
     sep = "\n"
 )
 
@@ -19,7 +20,8 @@ parse_args <- function(args) {
     opts <- list(
         top_n = "25",
         qvalue_cutoff = "0.05",
-        dif_cutoff = "0.1"
+        dif_cutoff = "0.1",
+        target_genes = ""
     )
     i <- 1
     while (i <= length(args)) {
@@ -27,7 +29,7 @@ parse_args <- function(args) {
         if (!startsWith(key, "--") || i == length(args)) {
             stop(usage, call. = FALSE)
         }
-        opts[[sub("^--", "", key)]] <- args[[i + 1]]
+        opts[[gsub("-", "_", sub("^--", "", key), fixed = TRUE)]] <- args[[i + 1]]
         i <- i + 2
     }
     opts
@@ -62,18 +64,27 @@ count_fasta_records <- function(path) {
     sum(grepl("^>", readLines(path, warn = FALSE)))
 }
 
-opts <- parse_args(args)
-required <- c("isar-dir", "outdir")
-missing <- required[!required %in% names(opts) | !nzchar(unlist(opts[required]))]
-if (length(missing) > 0) {
-    stop(sprintf("Missing required arguments: %s\n%s", paste(missing, collapse = ", "), usage()), call. = FALSE)
+parse_gene_list <- function(x) {
+    if (is.null(x) || is.na(x) || !nzchar(x) || x == "-") {
+        return(character())
+    }
+    values <- trimws(unlist(strsplit(x, ",", fixed = TRUE)))
+    unique(values[nzchar(values)])
 }
 
-isar_dir <- normalizePath(opts[["isar-dir"]], mustWork = TRUE)
+opts <- parse_args(args)
+required <- c("isar_dir", "outdir")
+missing <- required[!required %in% names(opts) | !nzchar(unlist(opts[required]))]
+if (length(missing) > 0) {
+    stop(sprintf("Missing required arguments: %s\n%s", paste(missing, collapse = ", "), usage), call. = FALSE)
+}
+
+isar_dir <- normalizePath(opts[["isar_dir"]], mustWork = TRUE)
 outdir <- opts$outdir
 top_n <- as.integer(opts$top_n)
 qvalue_cutoff <- as.numeric(opts$qvalue_cutoff)
 dif_cutoff <- as.numeric(opts$dif_cutoff)
+target_genes <- parse_gene_list(opts$target_genes)
 
 if (is.na(top_n) || top_n < 1) {
     stop("--top-n must be a positive integer", call. = FALSE)
@@ -138,6 +149,11 @@ features$gene_switch_q_value <- safe_num(features$gene_switch_q_value)
 features$is_signalp_candidate <- !is.na(features$isoform_switch_q_value) &
     features$isoform_switch_q_value < qvalue_cutoff &
     abs(features$dIF) >= dif_cutoff
+features$is_target_gene <- if (length(target_genes) > 0) {
+    features$gene_id %in% target_genes | features$gene_name %in% target_genes
+} else {
+    FALSE
+}
 features$direction <- ifelse(
     is.na(features$dIF) | features$dIF == 0,
     "unchanged",
@@ -147,16 +163,21 @@ features$dIF_pp <- format_dif_pp(features$dIF)
 features$isoform_switch_q_value_formatted <- format_q(features$isoform_switch_q_value)
 features$gene_switch_q_value_formatted <- format_q(features$gene_switch_q_value)
 
-candidate_table <- features[features$is_signalp_candidate, , drop = FALSE]
-candidate_table <- candidate_table[order(candidate_table$isoform_switch_q_value, -abs(candidate_table$dIF)), , drop = FALSE]
-candidate_table <- utils::head(candidate_table, top_n)
+candidate_table <- features[features$is_signalp_candidate | features$is_target_gene, , drop = FALSE]
+candidate_table$selection_reason <- ifelse(candidate_table$is_target_gene, "target_gene", "significant_switch")
+candidate_table <- candidate_table[order(!candidate_table$is_target_gene, candidate_table$isoform_switch_q_value, -abs(candidate_table$dIF)), , drop = FALSE]
+candidate_table <- unique(rbind(
+    utils::head(candidate_table[!candidate_table$is_target_gene, , drop = FALSE], top_n),
+    candidate_table[candidate_table$is_target_gene, , drop = FALSE]
+))
 
 candidate_cols <- intersect(
     c(
         "gene_id", "gene_name", "isoform_id", "condition_1", "condition_2",
         "IF1", "IF2", "dIF", "dIF_pp", "isoform_switch_q_value",
         "isoform_switch_q_value_formatted", "gene_switch_q_value",
-        "gene_switch_q_value_formatted", "direction", "PTC", "iso_biotype"
+        "gene_switch_q_value_formatted", "direction", "PTC", "iso_biotype",
+        "selection_reason"
     ),
     colnames(candidate_table)
 )
@@ -168,8 +189,26 @@ utils::write.csv(
 
 output_prefix <- "isoform_signalp_candidates"
 sequence_error <- tryCatch({
+    extraction_list <- switch_list
+    if (length(target_genes) > 0 && any(features$is_target_gene, na.rm = TRUE)) {
+        extraction_list$isoformFeatures <- features
+        target_idx <- extraction_list$isoformFeatures$is_target_gene
+        forced_dif <- dif_cutoff + sqrt(.Machine$double.eps)
+        low_dif_idx <- target_idx & (
+            is.na(extraction_list$isoformFeatures$dIF) |
+                abs(extraction_list$isoformFeatures$dIF) <= dif_cutoff
+        )
+        extraction_list$isoformFeatures$isoform_switch_q_value[target_idx] <- 0
+        extraction_list$isoformFeatures$gene_switch_q_value[target_idx] <- 0
+        extraction_list$isoformFeatures$dIF[low_dif_idx] <- ifelse(
+            !is.na(extraction_list$isoformFeatures$dIF[low_dif_idx]) &
+                extraction_list$isoformFeatures$dIF[low_dif_idx] < 0,
+            -forced_dif,
+            forced_dif
+        )
+    }
     switch_list_with_sequences <- extractSequence(
-        switchAnalyzeRlist = switch_list,
+        switchAnalyzeRlist = extraction_list,
         onlySwitchingGenes = TRUE,
         alpha = qvalue_cutoff,
         dIFcutoff = dif_cutoff,
@@ -198,7 +237,9 @@ notes <- c(
     sprintf("Input RDS: %s", basename(rds_path)),
     sprintf("q-value cutoff: %.3f", qvalue_cutoff),
     sprintf("dIF cutoff: %.3f", dif_cutoff),
+    sprintf("Target genes requested: %s", ifelse(length(target_genes) > 0, paste(target_genes, collapse = ", "), "none")),
     sprintf("Significant switch candidates in feature table: %d", sum(features$is_signalp_candidate, na.rm = TRUE)),
+    sprintf("Isoform rows force-included by target gene: %d", sum(features$is_target_gene, na.rm = TRUE)),
     sprintf("Top candidates written: %d", nrow(candidate_table)),
     sprintf("AA FASTA records written: %d", sequence_count),
     "",

@@ -20,7 +20,7 @@ process SIGNALP_PREPARE {
     task.ext.when == null || task.ext.when
 
     script:
-    def args = task.ext.args ?: ''
+    def args = task.ext.args ? " \\\n        ${task.ext.args}" : ''
     """
     Rscript ${prepare_script} \\
         --isar-dir ${isar_results} \\
@@ -28,7 +28,7 @@ process SIGNALP_PREPARE {
         --top-n ${params.signalp_top_n} \\
         --qvalue-cutoff ${params.isar_qvalue_cutoff} \\
         --dif-cutoff ${params.isar_dif_cutoff} \\
-        ${args}
+        --target-genes "${params.annotated_switch_genes ?: ''}"${args}
     """
 
     stub:

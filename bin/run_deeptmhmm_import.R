@@ -88,6 +88,15 @@ if (nrow(topology_rows) > 0) {
 }
 
 features <- switch_list$isoformFeatures
+annotated_isoform_ids <- character()
+if (nrow(topology_rows) > 0 && "isoform_id" %in% colnames(topology_rows)) {
+    annotated_isoform_ids <- unique(as.character(topology_rows$isoform_id[!is.na(topology_rows$isoform_id)]))
+}
+features$topology_identified <- ifelse(
+    as.character(features$isoform_id) %in% annotated_isoform_ids,
+    "yes",
+    "no"
+)
 feature_cols <- intersect(
     c(
         "gene_id", "gene_name", "isoform_id", "condition_1", "condition_2",
@@ -102,14 +111,8 @@ utils::write.csv(
     row.names = FALSE
 )
 
-if ("topology_identified" %in% colnames(features)) {
-    topology_summary <- as.data.frame(table(
-        ifelse(is.na(features$topology_identified), "unknown", as.character(features$topology_identified))
-    ), stringsAsFactors = FALSE)
-    colnames(topology_summary) <- c("topology_identified", "n_isoforms")
-} else {
-    topology_summary <- data.frame(topology_identified = "not_available", n_isoforms = nrow(features))
-}
+topology_summary <- as.data.frame(table(features$topology_identified), stringsAsFactors = FALSE)
+colnames(topology_summary) <- c("topology_identified", "n_isoforms")
 utils::write.csv(topology_summary, file.path(outdir, "deeptmhmm_summary.csv"), row.names = FALSE)
 
 summary_plot <- ggplot(topology_summary, aes(x = topology_identified, y = n_isoforms, fill = topology_identified)) +
@@ -134,7 +137,8 @@ notes <- c(
     sprintf("DeepTMHMM result file: %s", deeptmhmm_result_file),
     sprintf("Isoforms in feature table: %d", nrow(features)),
     sprintf("Topology rows imported: %d", nrow(topology_rows)),
-    sprintf("Isoforms with topology_identified == yes: %d", ifelse("topology_identified" %in% colnames(features), sum(features$topology_identified == "yes", na.rm = TRUE), 0)),
+    sprintf("Unique isoforms with topology rows: %d", length(annotated_isoform_ids)),
+    sprintf("Isoforms with topology_identified == yes: %d", sum(features$topology_identified == "yes", na.rm = TRUE)),
     "",
     "Interpretation:",
     "DeepTMHMM predicts transmembrane topology regions. These annotations can be rendered by IsoformSwitchAnalyzeR::switchPlot() as topology tracks."

@@ -11,6 +11,7 @@ include { SALMON_QUANT           } from '../modules/nf-core/salmon/quant/main'
 include { FETCH_SRA_FASTQ        } from '../modules/local/fetch_sra_fastq/main'
 include { ISAR_ANALYSIS          } from '../modules/local/isar_analysis/main'
 include { ISAR_VISUALIZATION     } from '../modules/local/isar_visualization/main'
+include { ISAR_CONTRAST_SUMMARY  } from '../modules/local/isar_contrast_summary/main'
 include { PFAM_PREPARE           } from '../modules/local/pfam_prepare/main'
 include { PFAM_SCAN              } from '../modules/local/pfam_scan/main'
 include { PFAM_IMPORT            } from '../modules/local/pfam_import/main'
@@ -125,6 +126,7 @@ workflow ISOFORM {
     //
     ch_isar_results = channel.empty()
     ch_isar_visualization_results = channel.empty()
+    ch_isar_contrast_summary_results = channel.empty()
     ch_pfam_prepare_results = channel.empty()
     ch_pfam_scan_results = channel.empty()
     ch_pfam_import_results = channel.empty()
@@ -168,6 +170,15 @@ workflow ISOFORM {
                 ISAR_ANALYSIS.out.results
             )
             ch_isar_visualization_results = ISAR_VISUALIZATION.out.results
+        }
+
+        if (params.run_isar_contrast_summary) {
+            ch_contrast_summary_script = channel.value(file("${projectDir}/bin/run_isar_contrast_summary.R", checkIfExists: true))
+            ISAR_CONTRAST_SUMMARY (
+                ch_contrast_summary_script,
+                ISAR_ANALYSIS.out.results
+            )
+            ch_isar_contrast_summary_results = ISAR_CONTRAST_SUMMARY.out.results
         }
 
         if (params.run_pfam_prepare || (!params.pfam_results && params.pfam_db)) {
@@ -397,6 +408,7 @@ workflow ISOFORM {
     quant_results  = SALMON_QUANT.out.results       // channel: [ meta, path(salmon_quant_dir) ]
     isar_results   = ch_isar_results                // channel: path(isar_analysis)
     isar_visualization_results = ch_isar_visualization_results // channel: path(isar_visualization)
+    isar_contrast_summary_results = ch_isar_contrast_summary_results // channel: path(isar_contrast_summary)
     pfam_prepare_results = ch_pfam_prepare_results  // channel: path(pfam_prepare)
     pfam_scan_results = ch_pfam_scan_results        // channel: path(pfam_scan.out)
     pfam_import_results = ch_pfam_import_results    // channel: path(pfam_import)

@@ -174,7 +174,9 @@ filtered_gtf <- file.path(opts$outdir, "filtered_annotation.gtf")
 write_filtered_gtf(opts$gtf, quantified_isoforms, filtered_gtf)
 
 conditions <- unique(design$condition)
+condition_counts <- table(design$condition)
 comparisons <- NULL
+contrast_labels <- NULL
 if (nzchar(opts$contrasts)) {
     contrasts <- read.csv(opts$contrasts, stringsAsFactors = FALSE, check.names = FALSE)
     required_contrast_cols <- c("contrast", "case", "control")
@@ -182,13 +184,37 @@ if (nzchar(opts$contrasts)) {
     if (length(missing_contrast_cols) > 0) {
         stop(sprintf("Contrast file is missing required columns: %s", paste(missing_contrast_cols, collapse = ", ")), call. = FALSE)
     }
+    missing_conditions <- setdiff(unique(c(contrasts$case, contrasts$control)), conditions)
+    if (length(missing_conditions) > 0) {
+        stop(sprintf("Contrast file references conditions absent from the samplesheet: %s", paste(missing_conditions, collapse = ", ")), call. = FALSE)
+    }
+    duplicated_contrasts <- contrasts$contrast[duplicated(contrasts$contrast)]
+    if (length(duplicated_contrasts) > 0) {
+        stop(sprintf("Contrast names must be unique. Duplicated names: %s", paste(unique(duplicated_contrasts), collapse = ", ")), call. = FALSE)
+    }
     comparisons <- data.frame(
+        condition_1 = contrasts$control,
+        condition_2 = contrasts$case,
+        stringsAsFactors = FALSE
+    )
+    contrast_labels <- data.frame(
+        contrast = contrasts$contrast,
         condition_1 = contrasts$control,
         condition_2 = contrasts$case,
         stringsAsFactors = FALSE
     )
 } else if (length(conditions) == 2) {
     comparisons <- data.frame(condition_1 = conditions[[1]], condition_2 = conditions[[2]], stringsAsFactors = FALSE)
+    contrast_labels <- data.frame(
+        contrast = sprintf("%s_vs_%s", comparisons$condition_2, comparisons$condition_1),
+        condition_1 = comparisons$condition_1,
+        condition_2 = comparisons$condition_2,
+        stringsAsFactors = FALSE
+    )
+}
+
+if (!is.null(contrast_labels)) {
+    safe_write_csv(contrast_labels, file.path(opts$outdir, "comparisons.csv"))
 }
 
 message("Creating switchAnalyzeRlist")
@@ -206,12 +232,26 @@ switch_list <- importRdata(
 
 saveRDS(switch_list, file.path(opts$outdir, "switchAnalyzeRlist_imported.rds"))
 
-condition_counts <- table(design$condition)
-can_run_test <- length(condition_counts) == 2 && all(condition_counts >= 2) && !is.null(comparisons)
+can_run_test <- !is.null(comparisons)
+skip_reason <- NULL
+if (is.null(comparisons)) {
+    skip_reason <- "No explicit contrast file was supplied and the samplesheet does not contain exactly two conditions."
+} else {
+    contrast_conditions <- unique(c(comparisons$condition_1, comparisons$condition_2))
+    low_replicate_conditions <- contrast_conditions[as.integer(condition_counts[contrast_conditions]) < 2]
+    if (length(low_replicate_conditions) > 0) {
+        can_run_test <- FALSE
+        skip_reason <- sprintf(
+            "DEXSeq-based testing needs at least two samples per condition used in each contrast. Low-replicate conditions: %s",
+            paste(sprintf("%s=%d", low_replicate_conditions, as.integer(condition_counts[low_replicate_conditions])), collapse = ", ")
+        )
+    }
+}
 notes <- c(
     sprintf("Samples imported: %d", nrow(design)),
     sprintf("Conditions: %s", paste(names(condition_counts), collapse = ", ")),
-    sprintf("Replicates per condition: %s", paste(sprintf("%s=%d", names(condition_counts), as.integer(condition_counts)), collapse = ", "))
+    sprintf("Replicates per condition: %s", paste(sprintf("%s=%d", names(condition_counts), as.integer(condition_counts)), collapse = ", ")),
+    sprintf("Comparisons requested: %d", ifelse(is.null(comparisons), 0L, nrow(comparisons)))
 )
 
 if (can_run_test) {
@@ -246,7 +286,7 @@ if (can_run_test) {
     notes <- c(
         notes,
         "Differential isoform usage test: skipped.",
-        "Reason: DEXSeq-based testing needs two conditions with at least two samples each."
+        sprintf("Reason: %s", skip_reason)
     )
 }
 

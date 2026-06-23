@@ -1,5 +1,5 @@
-process PFAM_PREPARE {
-    tag "pfam_prepare"
+process ISAR_CONTRAST_SUMMARY {
+    tag "isar_contrast_summary"
     label 'process_medium'
 
     conda "${moduleDir}/environment.yml"
@@ -8,13 +8,12 @@ process PFAM_PREPARE {
         'quay.io/biocontainers/bioconductor-isoformswitchanalyzer:2.6.0--r44h3df3fcb_0' }"
 
     input:
-    path prepare_script
+    path summary_script
     path isar_results
 
     output:
-    path "pfam_prepare", emit: results
-    path "pfam_prepare/*_AA.fasta", optional: true, emit: aa_fasta
-    tuple val("${task.process}"), val('bioconductor-isoformswitchanalyzer'), eval("Rscript -e \"cat(as.character(packageVersion('IsoformSwitchAnalyzeR')))\""), emit: versions_isar, topic: versions
+    path "isar_contrast_summary", emit: results
+    tuple val("${task.process}"), val('r-ggplot2'), eval("Rscript -e \"cat(as.character(packageVersion('ggplot2')))\""), emit: versions_ggplot2, topic: versions
 
     when:
     task.ext.when == null || task.ext.when
@@ -22,20 +21,20 @@ process PFAM_PREPARE {
     script:
     def args = task.ext.args ? " \\\n        ${task.ext.args}" : ''
     """
-    Rscript ${prepare_script} \\
+    Rscript ${summary_script} \\
         --isar-dir ${isar_results} \\
-        --outdir pfam_prepare \\
-        --top-n ${params.pfam_top_n} \\
+        --outdir isar_contrast_summary \\
         --qvalue-cutoff ${params.isar_qvalue_cutoff} \\
         --dif-cutoff ${params.isar_dif_cutoff} \\
-        --target-genes "${params.annotated_switch_genes ?: ''}"${args}
+        --top-n ${params.isar_contrast_summary_top_n}${args}
     """
 
     stub:
     """
-    mkdir -p pfam_prepare
-    touch pfam_prepare/pfam_prepare_notes.txt
-    touch pfam_prepare/pfam_top_candidates.csv
-    printf ">stub_isoform\\nMA\\n" > pfam_prepare/isoform_pfam_candidates_AA.fasta
+    mkdir -p isar_contrast_summary
+    touch isar_contrast_summary/isar_contrast_summary_notes.txt
+    touch isar_contrast_summary/significant_isoform_switches_per_comparison.csv
+    touch isar_contrast_summary/isoform_switch_intersections.csv
+    touch isar_contrast_summary/isoform_switch_intersection_members.csv
     """
 }

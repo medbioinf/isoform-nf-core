@@ -177,6 +177,17 @@
                     "default": 10,
                     "description": "Number of top switching genes used for ISAR visualization outputs."
                 },
+                "run_isar_contrast_summary": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Generate cross-contrast summaries for significant isoform switches.",
+                    "help_text": "Creates a per-comparison bar plot and an UpSet-style intersection plot from the analyzed IsoformSwitchAnalyzeR result. This is most useful when --contrasts contains multiple pairwise comparisons."
+                },
+                "isar_contrast_summary_top_n": {
+                    "type": "integer",
+                    "default": 20,
+                    "description": "Number of largest isoform-switch intersections to show in the UpSet-style contrast summary plot."
+                },
                 "run_pfam_prepare": {
                     "type": "boolean",
                     "default": false,
@@ -267,7 +278,8 @@
                 },
                 "annotated_switch_genes": {
                     "type": "string",
-                    "description": "Optional comma-separated gene IDs or gene names to plot in the annotated switch plot module."
+                    "description": "Optional comma-separated gene IDs or gene names to plot in the annotated switch plot module.",
+                    "help_text": "When optional annotation modules are enabled, these genes are also force-included during annotation FASTA preparation so requested plots can show available domains, topology, localization, signal peptide, or disorder annotations even if the genes are not significant in the current run."
                 },
                 "annotated_switch_condition1": {
                     "type": "string",

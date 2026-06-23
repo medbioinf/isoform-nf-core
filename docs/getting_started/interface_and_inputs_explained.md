@@ -274,6 +274,8 @@ condition_1 = control
 condition_2 = case
 ```
 
+When multiple rows are supplied, the pipeline imports all samples once, asks IsoformSwitchAnalyzeR to test the requested pairwise comparisons, and can summarize the overlap of significant isoform switches across contrasts with the contrast summary module.
+
 ## Reference Inputs
 
 The pipeline needs reference files because V1 is reference-based.
@@ -433,6 +435,32 @@ Default:
 ```
 
 Controls how many top genes are used for visualization outputs such as top switching genes and per-gene isoform usage plots.
+
+### `--run_isar_contrast_summary`
+
+Default:
+
+```text
+true
+```
+
+If true, the pipeline creates cross-contrast summaries from the analyzed IsoformSwitchAnalyzeR result. This is especially useful when `--contrasts` contains more than one pairwise comparison.
+
+Outputs include:
+
+- a bar plot counting significant isoform switches per comparison
+- an UpSet-style plot showing which switched isoforms are unique to or shared between comparisons
+- CSV files containing the counts, intersections, and intersection members
+
+### `--isar_contrast_summary_top_n`
+
+Default:
+
+```text
+20
+```
+
+Controls how many of the largest isoform-switch intersections are shown in the UpSet-style plot.
 
 ### `--run_pfam_prepare`
 
@@ -609,6 +637,8 @@ Controls how many top switching genes are plotted when `--annotated_switch_genes
 Optional comma-separated gene list for annotated switch plots.
 
 Use this when you want specific genes instead of the top-ranked genes selected from the ISAR result.
+
+When optional annotation modules are enabled, these genes are also passed into annotation preparation. Pfam, IUPred2A, SignalP, DeepTMHMM, and DeepLoc2 will force-include the requested genes in their protein FASTA targets even if the genes are not significant switch candidates in the current ISAR result. The original switch statistics are not changed; only the annotation target set is expanded.
 
 ### `--annotated_switch_condition1` and `--annotated_switch_condition2`
 

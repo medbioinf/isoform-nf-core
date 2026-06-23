@@ -123,7 +123,9 @@ This will launch the pipeline with the `docker` configuration profile. Docker is
 
 The current reusable path uses the transcript FASTA to build a Salmon index, the optional genome FASTA as decoy sequence for a more specific Salmon index, and the GTF to map transcript IDs back to genes. The transcript IDs should match between the transcript FASTA and GTF.
 
-After Salmon quantification, the pipeline imports the transcript-level abundance estimates into `IsoformSwitchAnalyzeR`. If the dataset has two conditions with at least two samples per condition, the pipeline runs the DEXSeq-based isoform switch test. For very small smoke-test datasets, it still creates the `switchAnalyzeRlist` import object and records that statistical testing was skipped.
+After Salmon quantification, the pipeline imports the transcript-level abundance estimates into `IsoformSwitchAnalyzeR`. If a contrast file is supplied, the pipeline runs the requested pairwise comparisons in one ISAR analysis when each contrast condition has at least two samples. If no contrast file is supplied, a two-condition dataset is tested as a single comparison. For very small smoke-test datasets, it still creates the `switchAnalyzeRlist` import object and records that statistical testing was skipped.
+
+The pipeline also writes `isar/isar_contrast_summary/` by default. This directory contains a per-comparison significant-switch bar plot and an UpSet-style plot summarizing which significant isoform switches are shared across multiple contrasts.
 
 Note that the pipeline will create the following files in your working directory:
 
@@ -185,6 +187,8 @@ outdir: './results/'
 ```
 
 You can also generate such `YAML`/`JSON` files via [nf-core/launch](https://nf-co.re/launch).
+
+When `run_annotated_switch_plots` is used with `annotated_switch_genes`, enabled annotation modules also force-include those genes during protein FASTA preparation. This helps reproduce specific gene-level annotated switch plots even when upstream switch statistics differ slightly from another run.
 
 ### Updating the pipeline
 

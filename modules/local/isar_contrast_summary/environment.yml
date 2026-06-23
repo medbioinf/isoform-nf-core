@@ -1,0 +1,7 @@
+name: isar_contrast_summary
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - r-base
+  - r-ggplot2

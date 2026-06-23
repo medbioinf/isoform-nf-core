@@ -566,6 +566,7 @@ Issues discovered and fixed:
 - DeepTMHMM could not run directly in `/openprotein` because it needs writable working directories. The module now creates a writable work directory and symlinks the model/runtime assets.
 - DeepTMHMM's bundled `predict.py` wrote one report to `/deeptmhmm_results.md`, which is not writable in the container. The module patches that path to a relative filename inside the writable work directory before execution.
 - The first DeepTMHMM workdir symlink attempt excluded package directories and triggered `No module named 'experiments'`; the module now symlinks all required `/openprotein` entries except `predict.py`, which is copied and patched.
+- A later prototype-parity check showed that explicit annotated switch plot genes can be absent from the automatic annotation target set when upstream switch statistics differ. The prepare modules now force-include `--annotated_switch_genes` in enabled annotation FASTA preparation without changing the original ISAR switch statistics.
 
 Runtime notes:
 
@@ -580,6 +581,169 @@ results/gse50760_4v4_milestone_b_full_validation/
 ```
 
 The copied files include selected DeepTMHMM, DeepLoc2, annotated switch plot, ISAR, MultiQC, and pipeline parameter outputs. Large serialized R objects and heavy work-directory intermediates were intentionally left on the VM.
+
+## Target Gene Annotation Preparation Validation
+
+Validation command, run on the VM:
+
+```bash
+nextflow run . \
+    -profile docker \
+    -resume \
+    --input assets/gse50760_4v4_existing_fastp_samplesheet.csv \
+    --contrasts assets/gse50760_primary_crc_vs_normal_colon.csv \
+    --transcript_fasta ../nextflow-studienprojekt/gse50760/reference/gencode.v49.transcripts.fa.gz \
+    --gtf ../nextflow-studienprojekt/gse50760/reference/gencode.v49.chr_patch_hapl_scaff.annotation.gtf.gz \
+    --run_pfam_prepare \
+    --annotated_switch_genes ZNRF3,PBX3,YEATS4 \
+    --outdir results/gse50760_4v4_target_gene_prepare_validation5 \
+    --multiqc_title GSE50760_4v4_target_gene_prepare_validation5 \
+    -work-dir work_gse50760_4v4_target_gene_prepare_validation5
+```
+
+Outcome:
+
+- The run completed successfully in 4m 13s with 99% cached work; only `PFAM_PREPARE` and `MULTIQC` ran fresh.
+- `pfam_prepare_notes.txt` reported `Target genes requested: ZNRF3, PBX3, YEATS4`, `Isoform rows force-included by target gene: 17`, and `AA FASTA records written: 2968`.
+- The target-gene candidate table contains `selection_reason=target_gene` rows for ZNRF3, PBX3, and YEATS4.
+- The AA FASTA contains target protein-coding isoforms including `ENST00000406323.3` for ZNRF3, `ENST00000342287.9` for PBX3, and `ENST00000247843.7`, `ENST00000548020.5`, `ENST00000549685.5`, and `ENST00000552955.1` for YEATS4. The retained-intron YEATS4 transcript does not emit an AA sequence, as expected.
+
+Issues discovered and fixed:
+
+- After normalizing CLI option names from hyphens to underscores, the prepare scripts still checked for `isar-dir`. They now check and read `isar_dir`.
+- Target isoforms below the dIF cutoff were initially set to exactly the cutoff for sequence extraction. ISAR's switching-gene extraction behaves as a strict cutoff, so genes such as YEATS4 with all target isoforms below the cutoff were still excluded from AA FASTA output. The prepare scripts now set target-only extraction dIF just above the cutoff while preserving the original reported statistics in the CSV and ISAR result.
+
+Copied-back local inspection path:
+
+```text
+results/gse50760_4v4_target_gene_prepare_validation5/
+```
+
+## Target Gene Pfam Full Validation
+
+Validation command, run on the VM:
+
+```bash
+nextflow run . \
+    -profile docker \
+    -resume \
+    --input assets/gse50760_4v4_existing_fastp_samplesheet.csv \
+    --contrasts assets/gse50760_primary_crc_vs_normal_colon.csv \
+    --transcript_fasta ../nextflow-studienprojekt/gse50760/reference/gencode.v49.transcripts.fa.gz \
+    --gtf ../nextflow-studienprojekt/gse50760/reference/gencode.v49.chr_patch_hapl_scaff.annotation.gtf.gz \
+    --pfam_db ../nextflow-studienprojekt/gse50760/reference/pfam/Pfam37.0 \
+    --run_annotated_switch_plots \
+    --annotated_switch_genes ZNRF3,PBX3,YEATS4 \
+    --annotated_switch_condition1 normal_colon \
+    --annotated_switch_condition2 primary_crc \
+    --outdir results/gse50760_4v4_target_gene_pfam_full_validation \
+    --multiqc_title GSE50760_4v4_target_gene_pfam_full_validation \
+    -work-dir work_gse50760_4v4_target_gene_pfam_full_validation
+```
+
+Outcome:
+
+- The run completed successfully in 28m 7s with 81.6% cached work.
+- Fresh processes: `PFAM_PREPARE`, `PFAM_SCAN`, `PFAM_IMPORT`, `PFAM_VISUALIZATION`, `ANNOTATED_SWITCH_PLOTS`, and `MULTIQC`.
+- `PFAM_SCAN` used the local indexed Pfam37.0 database and scanned the target-gene-expanded FASTA.
+- `PFAM_IMPORT` imported 7211 domain rows and reported 2614 isoforms with `domain_identified == yes`.
+- Annotated switch plots were generated for ZNRF3, PBX3, and YEATS4.
+- `annotation_status.csv` reports ORF/PTC and Pfam protein domains as available. SignalP, IUPred2A, DeepLoc2, and DeepTMHMM are missing in this run because only Pfam was enabled.
+
+Target gene checks:
+
+- ZNRF3 plot contains `ZNRF_3_ecto` and `zf-RING_2` domain tracks across all three plotted isoforms.
+- PBX3 plot contains `PBC` and `Homeobox_KN` domain tracks.
+- YEATS4 plot contains `YEATS` domain tracks for the protein-coding isoforms.
+- The retained-intron YEATS4 transcript remains unannotated for Pfam, as expected.
+
+Copied-back local inspection path:
+
+```text
+results/gse50760_4v4_target_gene_pfam_full_validation/
+```
+
+## Multi-Contrast ISAR Summary Validation
+
+Implementation area:
+
+- contrast-aware ISAR statistical-test guard
+- cross-contrast significant-switch summary
+- UpSet-style isoform switch intersection plot
+
+Validation performed:
+
+- Ran `nextflow config -profile test,docker` on the VM.
+- Ran a VM stub workflow:
+
+```bash
+nextflow run . \
+    -profile test,docker \
+    -stub-run \
+    --outdir results/test_isar_contrast_summary_stub \
+    -work-dir work_test_isar_contrast_summary_stub
+```
+
+- Ran a real tiny VM workflow:
+
+```bash
+nextflow run . \
+    -profile test,docker \
+    --outdir results/test_isar_contrast_summary_real \
+    -work-dir work_test_isar_contrast_summary_real
+```
+
+- Ran `run_isar_contrast_summary.R` directly against a synthetic analyzed ISAR-like object with three comparisons to exercise multi-set intersection plotting.
+
+Outcome:
+
+- The stub workflow completed and instantiated `ISAR_CONTRAST_SUMMARY`.
+- The real tiny workflow completed and wrote `isar/isar_analysis/comparisons.csv` plus `isar/isar_contrast_summary/`.
+- The tiny workflow had one comparison, so it wrote the per-comparison bar plot and skipped the UpSet plot with an explanatory note.
+- The synthetic multi-comparison check wrote `significant_isoform_switches_per_comparison.*`, `isoform_switch_intersections.csv`, `isoform_switch_intersection_members.csv`, and `isoform_switch_upset.*`.
+- The synthetic intersections matched the expected memberships: one B-only intersection, one A+B overlap, one A+C overlap, and one C-only intersection.
+
+Known limitation:
+
+- A direct standalone attempt to fake a four-condition ISAR analysis from duplicated tiny fixture quantifications failed inside `IsoformSwitchAnalyzeR::importRdata()` before statistical testing. This was treated as a fixture limitation rather than a pipeline regression; the real pipeline test and direct summary-script test passed.
+
+## Full Annotation Parity Validation
+
+Validation command, run detached on the VM:
+
+```bash
+nextflow run . \
+    -profile docker \
+    -resume \
+    --input assets/gse50760_4v4_existing_fastp_samplesheet.csv \
+    --contrasts assets/gse50760_primary_crc_vs_normal_colon.csv \
+    --transcript_fasta ../nextflow-studienprojekt/gse50760/reference/gencode.v49.transcripts.fa.gz \
+    --gtf ../nextflow-studienprojekt/gse50760/reference/gencode.v49.chr_patch_hapl_scaff.annotation.gtf.gz \
+    --pfam_db ../nextflow-studienprojekt/gse50760/reference/pfam/Pfam37.0 \
+    --run_deeptmhmm \
+    --run_deeploc2 \
+    --run_annotated_switch_plots \
+    --annotated_switch_genes ZNRF3,PBX3,YEATS4 \
+    --annotated_switch_condition1 normal_colon \
+    --annotated_switch_condition2 primary_crc \
+    --outdir results/gse50760_4v4_parity_overnight_20260622 \
+    --multiqc_title GSE50760_4v4_parity_overnight_20260622 \
+    -work-dir work_gse50760_4v4_parity_overnight_20260622
+```
+
+Outcome:
+
+- The run completed successfully in 2h 55m 45s with 48 succeeded processes.
+- `annotation_status.csv` reports ORF/PTC, Pfam protein domains, DeepLoc2 subcellular locations, and DeepTMHMM topology as available. SignalP and IUPred2A are missing because they were not enabled in this run.
+- Annotated switch plots were generated for ZNRF3, PBX3, and YEATS4.
+- Visual inspection confirmed that the ZNRF3 plot contains Pfam domains, DeepLoc2 locations, and DeepTMHMM topology tracks.
+- PBX3 and YEATS4 plots contain their expected Pfam domain tracks and localization labels; DeepTMHMM topology tracks are rendered where DeepTMHMM predicts regions.
+- The annotated plots were copied back locally to `results/gse50760_4v4_parity_overnight_20260622_annotated/annotated_switch_plots/`.
+
+Issue discovered and fixed:
+
+- `deeptmhmm_import_notes.txt` incorrectly reported `Isoforms with topology_identified == yes: 0` because the import script expected a `topology_identified` column in `isoformFeatures`. In the tested IsoformSwitchAnalyzeR version, `analyzeDeepTMHMM()` stores topology rows in `topologyAnalysis` and `switchPlot()` renders from that table. The import script now derives `topology_identified` from unique `topologyAnalysis$isoform_id` values.
+- Focused VM validation against the completed parity run wrote corrected DeepTMHMM import outputs: 7131 topology rows, 2948 unique isoforms with topology rows, and 2948 `topology_identified == yes` isoforms. Among the requested target genes, 13 of 17 isoform rows have topology annotations.
 
 ## Documentation Validation
 
