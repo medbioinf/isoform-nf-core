@@ -93,6 +93,15 @@ if (nrow(idr_rows) > 0) {
 }
 
 features <- switch_list$isoformFeatures
+annotated_isoform_ids <- character()
+if (nrow(idr_rows) > 0 && "isoform_id" %in% colnames(idr_rows)) {
+    annotated_isoform_ids <- unique(as.character(idr_rows$isoform_id[!is.na(idr_rows$isoform_id)]))
+}
+features$IDR_identified <- ifelse(
+    as.character(features$isoform_id) %in% annotated_isoform_ids,
+    "yes",
+    "no"
+)
 feature_cols <- intersect(
     c(
         "gene_id", "gene_name", "isoform_id", "condition_1", "condition_2",
@@ -107,14 +116,8 @@ utils::write.csv(
     row.names = FALSE
 )
 
-if ("IDR_identified" %in% colnames(features)) {
-    idr_summary <- as.data.frame(table(
-        ifelse(is.na(features$IDR_identified), "unknown", as.character(features$IDR_identified))
-    ), stringsAsFactors = FALSE)
-    colnames(idr_summary) <- c("IDR_identified", "n_isoforms")
-} else {
-    idr_summary <- data.frame(IDR_identified = "not_available", n_isoforms = nrow(features))
-}
+idr_summary <- as.data.frame(table(features$IDR_identified), stringsAsFactors = FALSE)
+colnames(idr_summary) <- c("IDR_identified", "n_isoforms")
 utils::write.csv(idr_summary, file.path(outdir, "iupred2a_idr_summary.csv"), row.names = FALSE)
 
 idr_plot <- ggplot(idr_summary, aes(x = IDR_identified, y = n_isoforms, fill = IDR_identified)) +
@@ -139,7 +142,8 @@ notes <- c(
     sprintf("IUPred2A result file: %s", iupred2a_result_file),
     sprintf("Isoforms in feature table: %d", nrow(features)),
     sprintf("IDR rows imported: %d", nrow(idr_rows)),
-    sprintf("Isoforms with IDR_identified == yes: %d", ifelse("IDR_identified" %in% colnames(features), sum(features$IDR_identified == "yes", na.rm = TRUE), 0)),
+    sprintf("Unique isoforms with IDR rows: %d", length(annotated_isoform_ids)),
+    sprintf("Isoforms with IDR_identified == yes: %d", sum(features$IDR_identified == "yes", na.rm = TRUE)),
     "",
     "Interpretation:",
     "IUPred2A predicts intrinsically disordered protein regions.",

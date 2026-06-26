@@ -745,6 +745,45 @@ Issue discovered and fixed:
 - `deeptmhmm_import_notes.txt` incorrectly reported `Isoforms with topology_identified == yes: 0` because the import script expected a `topology_identified` column in `isoformFeatures`. In the tested IsoformSwitchAnalyzeR version, `analyzeDeepTMHMM()` stores topology rows in `topologyAnalysis` and `switchPlot()` renders from that table. The import script now derives `topology_identified` from unique `topologyAnalysis$isoform_id` values.
 - Focused VM validation against the completed parity run wrote corrected DeepTMHMM import outputs: 7131 topology rows, 2948 unique isoforms with topology rows, and 2948 `topology_identified == yes` isoforms. Among the requested target genes, 13 of 17 isoform rows have topology annotations.
 
+## Full All-Annotation Parity Validation
+
+Validation command, run detached on the VM:
+
+```bash
+nextflow run . \
+    -profile docker \
+    --sra_manifest assets/gse50760_4v4_sra_manifest.csv \
+    --contrasts assets/gse50760_primary_crc_vs_normal_colon.csv \
+    --transcript_fasta ../nextflow-studienprojekt/gse50760/reference/gencode.v49.transcripts.fa.gz \
+    --gtf ../nextflow-studienprojekt/gse50760/reference/gencode.v49.chr_patch_hapl_scaff.annotation.gtf.gz \
+    --pfam_db ../nextflow-studienprojekt/gse50760/reference/pfam/Pfam37.0 \
+    --run_signalp \
+    --run_iupred2a \
+    --run_deeptmhmm \
+    --run_deeploc2 \
+    --run_annotated_switch_plots \
+    --annotated_switch_genes ZNRF3,PBX3,YEATS4 \
+    --annotated_switch_condition1 normal_colon \
+    --annotated_switch_condition2 primary_crc \
+    --outdir results/20260623_gse50760_4v4_all_annotations_parity \
+    --multiqc_title 20260623_gse50760_4v4_all_annotations_parity \
+    -work-dir work_20260623_gse50760_4v4_all_annotations_parity
+```
+
+Outcome:
+
+- The run completed successfully in 3h 45m 25s with 62 succeeded processes.
+- `annotation_status.csv` reports ORF/PTC, Pfam protein domains, SignalP signal peptide, IUPred2A/NetSurfP IDR, DeepLoc2 subcellular locations, and DeepTMHMM topology as available.
+- Annotated switch plots were generated for ZNRF3, PBX3, and YEATS4 with all enabled annotation layers available to `switchPlot()`.
+- SignalP imported 353 signal peptide rows and reported 353 `signal_peptide_identified == yes` isoforms.
+- DeepTMHMM imported 7117 topology rows and reported 2997 unique isoforms with topology rows.
+- IUPred2A imported 4044 IDR rows.
+
+Issue discovered and fixed:
+
+- `iupred2a_import_notes.txt` incorrectly reported `Isoforms with IDR_identified == yes: 0` because the import script expected an `IDR_identified` column in `isoformFeatures`. In the tested IsoformSwitchAnalyzeR version, `analyzeIUPred2A()` stores IDR rows in `idrAnalysis` and `switchPlot()` renders from that table. The import script now derives `IDR_identified` from unique `idrAnalysis$isoform_id` values.
+- Focused VM validation against the completed all-annotation run wrote corrected IUPred2A import outputs: 4044 IDR rows, 1549 unique isoforms with IDR rows, and 1549 `IDR_identified == yes` isoforms. Among the requested target genes, 8 of 17 isoform rows have IDR annotations.
+
 ## Documentation Validation
 
 Implementation area:
@@ -844,7 +883,6 @@ For changes touching SRA mode:
 - SRA tests depend on network access and public archive availability.
 - Pfam tests require a prepared local Pfam database.
 - Full SignalP validation depends on a usable SignalP container and currently disables Nextflow trace/timeline/report metrics because the configured image lacks `ps`.
-- Full IUPred2A workflow validation is still pending.
 - Full DeepTMHMM and DeepLoc2 validation is manual because the tools are too heavy for ordinary CI.
 - The synthetic fixture is intentionally tiny and cannot prove biological correctness.
 - More nf-test snapshots/assertions should be added once the output contract stabilizes.
