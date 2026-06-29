@@ -778,6 +778,7 @@ Outcome:
 - SignalP imported 353 signal peptide rows and reported 353 `signal_peptide_identified == yes` isoforms.
 - DeepTMHMM imported 7117 topology rows and reported 2997 unique isoforms with topology rows.
 - IUPred2A imported 4044 IDR rows.
+- The full VM result directory was about 142 GB because it includes SRA/FASTQ intermediates. A curated local inspection subset was copied to `results/20260623_gse50760_4v4_all_annotations_parity/` in this repository. The local subset is about 4.1 GB and includes annotated switch plots, ISAR outputs, annotation import outputs, summary plots, MultiQC, pipeline info, and relevant RDS files, but intentionally excludes large raw/intermediate `fetch/`, `cat/`, `fastp/`, and full Salmon output directories.
 
 Issue discovered and fixed:
 

@@ -75,6 +75,14 @@ short_isoform_id <- function(ids) sub("\\.[0-9]+$", "", as.character(ids))
 
 sanitize_filename <- function(value) gsub("[^A-Za-z0-9_.-]+", "_", as.character(value))
 
+make_switch_key <- function(gene_id, condition_1, condition_2) {
+    paste(as.character(gene_id), as.character(condition_1), as.character(condition_2), sep = "||")
+}
+
+make_comparison_label <- function(condition_1, condition_2) {
+    sprintf("%s vs %s", as.character(condition_2), as.character(condition_1))
+}
+
 write_no_switch_outputs <- function(outdir, notes) {
     dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
     write_empty_csv(
@@ -168,6 +176,7 @@ features$direction <- ifelse(
     ifelse(features$dIF > 0, features$condition_2, features$condition_1)
 )
 features$isoform_short <- short_isoform_id(features$isoform_id)
+features$switch_key <- make_switch_key(features$gene_id, features$condition_1, features$condition_2)
 if (!"PTC" %in% colnames(features)) {
     features$PTC <- NA
 }
@@ -191,7 +200,11 @@ if (!"Rank" %in% colnames(top_switches)) {
     top_switches$Rank <- seq_len(nrow(top_switches))
 }
 
-top_genes <- utils::head(top_switches$gene_id, top_n)
+top_switches$switch_key <- make_switch_key(top_switches$gene_id, top_switches$condition_1, top_switches$condition_2)
+top_switches <- top_switches[!duplicated(top_switches$switch_key), , drop = FALSE]
+top_units <- utils::head(top_switches, top_n)
+top_keys <- top_units$switch_key
+top_genes <- unique(top_units$gene_id)
 
 switch_plot_notes <- character(0)
 switch_plots_written <- 0
@@ -208,9 +221,9 @@ if (!has_statistical_q_values || identical(normalizePath(rds_path, mustWork = FA
     )
 } else {
     pdf(top_switch_plot_pdf, width = 12, height = 8)
-    cover_genes <- utils::head(top_switches, top_n)
-    cover_labels <- ifelse(!is.na(cover_genes$gene_name) & nzchar(cover_genes$gene_name), cover_genes$gene_name, cover_genes$gene_id)
-    cover_q <- format_q(cover_genes$gene_switch_q_value)
+    cover_labels <- ifelse(!is.na(top_units$gene_name) & nzchar(top_units$gene_name), top_units$gene_name, top_units$gene_id)
+    cover_comparisons <- make_comparison_label(top_units$condition_1, top_units$condition_2)
+    cover_q <- format_q(top_units$gene_switch_q_value)
     grid::grid.newpage()
     grid::grid.text("Official IsoformSwitchAnalyzeR Top Switch Plots", x = 0.5, y = 0.88, gp = grid::gpar(fontsize = 22, fontface = "bold"))
     grid::grid.text(
@@ -220,16 +233,16 @@ if (!has_statistical_q_values || identical(normalizePath(rds_path, mustWork = FA
         gp = grid::gpar(fontsize = 13)
     )
     grid::grid.text(
-        paste(sprintf("%2d. %s  (gene q-value %s)", seq_along(cover_labels), cover_labels, cover_q), collapse = "\n"),
+        paste(sprintf("%2d. %s  [%s]  (gene q-value %s)", seq_along(cover_labels), cover_labels, cover_comparisons, cover_q), collapse = "\n"),
         x = 0.08,
         y = 0.66,
         just = c("left", "top"),
         gp = grid::gpar(fontsize = 11, fontfamily = "mono")
     )
-    for (gene in top_genes) {
-        gene_rows <- top_switches[top_switches$gene_id == gene, , drop = FALSE]
-        condition_1 <- gene_rows$condition_1[[1]]
-        condition_2 <- gene_rows$condition_2[[1]]
+    for (i in seq_len(nrow(top_units))) {
+        gene <- top_units$gene_id[[i]]
+        condition_1 <- top_units$condition_1[[i]]
+        condition_2 <- top_units$condition_2[[i]]
         plot_result <- tryCatch({
             IsoformSwitchAnalyzeR::switchPlot(
                 switchAnalyzeRlist = switch_list,
@@ -272,7 +285,7 @@ if (!has_statistical_q_values || identical(normalizePath(rds_path, mustWork = FA
     }
 }
 
-top_features <- features[features$gene_id %in% top_genes, , drop = FALSE]
+top_features <- features[features$switch_key %in% top_keys, , drop = FALSE]
 top_features$abs_dIF <- abs(top_features$dIF)
 if (has_isoform_q_values) {
     top_features <- top_features[order(top_features$isoform_switch_q_value, -top_features$abs_dIF), , drop = FALSE]
@@ -320,9 +333,9 @@ if (nrow(comparison_pairs) > 0) {
     volcano_direction_label <- "Negative dIF: higher in condition 1; positive dIF: higher in condition 2"
 }
 
-top_volcano_labels <- features[features$gene_id %in% top_genes & features$is_significant_switch, , drop = FALSE]
+top_volcano_labels <- top_features[top_features$is_significant_switch, , drop = FALSE]
 top_volcano_labels <- top_volcano_labels[order(top_volcano_labels$isoform_switch_q_value, -abs(top_volcano_labels$dIF)), , drop = FALSE]
-top_volcano_labels <- top_volcano_labels[!duplicated(top_volcano_labels$gene_id), , drop = FALSE]
+top_volcano_labels <- top_volcano_labels[!duplicated(top_volcano_labels$switch_key), , drop = FALSE]
 top_volcano_labels <- utils::head(top_volcano_labels, top_n)
 top_volcano_labels$label <- ifelse(!is.na(top_volcano_labels$gene_name) & nzchar(top_volcano_labels$gene_name), top_volcano_labels$gene_name, top_volcano_labels$gene_id)
 
@@ -347,9 +360,14 @@ if (has_isoform_q_values) {
     writeLines("No isoform-level q-values were available, so the volcano plot was not written.", file.path(outdir, "isoform_switch_volcano.txt"))
 }
 
-top_gene_plot_data <- utils::head(top_switches, top_n)
+top_gene_plot_data <- top_units
 top_gene_plot_data$gene_label <- ifelse(!is.na(top_gene_plot_data$gene_name) & nzchar(top_gene_plot_data$gene_name), top_gene_plot_data$gene_name, top_gene_plot_data$gene_id)
-top_gene_plot_data$gene_label <- factor(top_gene_plot_data$gene_label, levels = rev(top_gene_plot_data$gene_label))
+top_gene_plot_data$gene_label <- sprintf(
+    "%s (%s)",
+    top_gene_plot_data$gene_label,
+    make_comparison_label(top_gene_plot_data$condition_1, top_gene_plot_data$condition_2)
+)
+top_gene_plot_data$gene_label <- factor(top_gene_plot_data$gene_label, levels = rev(unique(top_gene_plot_data$gene_label)))
 top_gene_plot_data$neg_log10_gene_q <- safe_neg_log10(top_gene_plot_data$gene_switch_q_value)
 if (has_gene_q_values) {
     top_gene_plot <- ggplot(top_gene_plot_data, aes(x = neg_log10_gene_q, y = gene_label)) +
@@ -387,8 +405,10 @@ usage_dir <- file.path(outdir, "top_gene_isoform_usage")
 dir.create(usage_dir, recursive = TRUE, showWarnings = FALSE)
 pdf(usage_pdf, width = 10, height = 6)
 
-for (gene in top_genes) {
-    gene_df <- features[features$gene_id == gene, , drop = FALSE]
+for (i in seq_len(nrow(top_units))) {
+    gene <- top_units$gene_id[[i]]
+    switch_key <- top_units$switch_key[[i]]
+    gene_df <- features[features$switch_key == switch_key, , drop = FALSE]
     if (nrow(gene_df) == 0) next
     gene_df$max_if <- pmax(gene_df$IF1, gene_df$IF2, na.rm = TRUE)
     if (has_isoform_q_values) {
@@ -402,7 +422,7 @@ for (gene in top_genes) {
     gene_label <- gene_df$gene_name[[1]]
     if (is.na(gene_label) || !nzchar(gene_label)) gene_label <- gene
     gene_q_label <- format_q(gene_df$gene_switch_q_value[[1]])
-    comparison_label <- sprintf("%s vs %s", gene_df$condition_2[[1]], gene_df$condition_1[[1]])
+    comparison_label <- make_comparison_label(gene_df$condition_1[[1]], gene_df$condition_2[[1]])
     usage_df <- rbind(
         data.frame(isoform_id = gene_df$isoform_id, isoform_short = gene_df$isoform_short, condition = gene_df$condition_1, IF = gene_df$IF1, stringsAsFactors = FALSE),
         data.frame(isoform_id = gene_df$isoform_id, isoform_short = gene_df$isoform_short, condition = gene_df$condition_2, IF = gene_df$IF2, stringsAsFactors = FALSE)
@@ -420,8 +440,9 @@ for (gene in top_genes) {
         theme_bw(base_size = 12) +
         theme(axis.text.x = element_text(angle = 35, hjust = 1), legend.position = "bottom")
     print(usage_plot)
-    ggsave(file.path(usage_dir, sprintf("%02d_%s_isoform_usage.png", match(gene, top_genes), sanitize_filename(gene_label))), usage_plot, width = 10, height = 6, dpi = 180)
-    ggsave(file.path(usage_dir, sprintf("%02d_%s_isoform_usage.pdf", match(gene, top_genes), sanitize_filename(gene_label))), usage_plot, width = 10, height = 6)
+    usage_prefix <- sprintf("%02d_%s_%s", i, sanitize_filename(gene_label), sanitize_filename(comparison_label))
+    ggsave(file.path(usage_dir, sprintf("%s_isoform_usage.png", usage_prefix)), usage_plot, width = 10, height = 6, dpi = 180)
+    ggsave(file.path(usage_dir, sprintf("%s_isoform_usage.pdf", usage_prefix)), usage_plot, width = 10, height = 6)
 }
 
 dev.off()
@@ -434,7 +455,7 @@ writeLines(
         sprintf("Genes in feature table: %d", length(unique(features$gene_id))),
         sprintf("Statistical q-values available: %s", ifelse(has_statistical_q_values, "yes", "no")),
         sprintf("Isoforms passing q < 0.05 and abs(dIF) >= 0.1: %d", sum(features$is_significant_switch, na.rm = TRUE)),
-        sprintf("Top genes plotted: %d", length(top_genes)),
+        sprintf("Top gene-comparison units plotted: %d", nrow(top_units)),
         sprintf("Official switchPlot pages written: %d", switch_plots_written)
     ),
     file.path(outdir, "visualization_notes.txt")

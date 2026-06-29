@@ -1,0 +1,4 @@
+contrast,case,control
+primary_crc_vs_normal_colon,primary_crc,normal_colon
+liver_metastasis_vs_normal_colon,liver_metastasis,normal_colon
+liver_metastasis_vs_primary_crc,liver_metastasis,primary_crc
