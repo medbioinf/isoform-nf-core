@@ -127,6 +127,8 @@ After Salmon quantification, the pipeline imports the transcript-level abundance
 
 The pipeline also writes `isar/isar_contrast_summary/` by default. This directory contains a per-comparison significant-switch bar plot and an UpSet-style plot summarizing which significant isoform switches are shared across multiple contrasts.
 
+GO enrichment can be enabled with `--run_go_enrichment`. This step takes significant switching genes from each ISAR contrast and asks whether they are over-represented in Gene Ontology or another WebGestaltR database. It is disabled by default because it adds a WebGestaltR runtime dependency and may require WebGestalt/database access.
+
 Optional annotation modules can be enabled when you want biological interpretation of significant switch candidates:
 
 - `--pfam_db` or `--pfam_results` adds protein-domain annotation.

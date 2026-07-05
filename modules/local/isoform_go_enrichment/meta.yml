@@ -1,0 +1,54 @@
+name: isoform_go_enrichment
+description: Run GO Biological Process enrichment for IsoformSwitchAnalyzeR switching genes
+keywords:
+  - isoform
+  - gene ontology
+  - enrichment
+  - WebGestaltR
+tools:
+  - webgestaltr:
+      description: WebGestaltR performs gene set enrichment analysis using WebGestalt databases
+      homepage: https://bzhanglab.github.io/WebGestaltR/
+      documentation: https://bzhanglab.github.io/WebGestaltR/
+      licence: ["GPL-3.0-or-later"]
+input:
+  - go_script:
+      type: file
+      description: R script that prepares ISAR genes and runs GO enrichment
+      pattern: "*.R"
+  - isar_results:
+      type: directory
+      description: IsoformSwitchAnalyzeR result directory containing switchAnalyzeRlist_analyzed.rds and comparisons.csv
+      pattern: "isar_analysis"
+  - reference_gene_file:
+      type: file
+      description: Optional newline-delimited reference gene universe for GO enrichment
+      pattern: "*.txt"
+output:
+  input:
+    - go_input:
+        type: directory
+        description: Significant genes, background genes, and per-gene ISAR score table used for GO enrichment
+        pattern: "go_input"
+  enrichment:
+    - go_enrichment.csv:
+        type: file
+        description: GO enrichment results sorted by FDR when enriched terms are found
+        pattern: "go_enrichment.csv"
+  summary:
+    - go_summary.txt:
+        type: file
+        description: Text summary of GO enrichment inputs, status, and notes
+        pattern: "go_summary.txt"
+  report:
+    - webgestalt_report:
+        type: directory
+        description: WebGestaltR report directory when ORA is executed
+        pattern: "webgestalt_report"
+  versions:
+    - versions.yml:
+        type: file
+        description: File containing software versions
+        pattern: "versions.yml"
+authors:
+  - "@TobiasPol"

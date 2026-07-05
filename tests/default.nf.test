@@ -30,4 +30,27 @@ nextflow_pipeline {
             )
         }
     }
+
+    test("-profile test GO enrichment wiring - stub") {
+
+        options "-stub"
+
+        when {
+            params {
+                run_go_enrichment = true
+                outdir = "$outputDir"
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert new File("$outputDir/go/go_input/significant_genes.txt").exists() },
+                { assert new File("$outputDir/go/go_input/background_genes.txt").exists() },
+                { assert new File("$outputDir/go/go_input/go_gene_scores.csv").exists() },
+                { assert new File("$outputDir/go/go_enrichment.csv").exists() },
+                { assert new File("$outputDir/go/go_summary.txt").exists() }
+            )
+        }
+    }
 }

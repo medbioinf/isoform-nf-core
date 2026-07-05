@@ -18,6 +18,7 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and processes d
 - [IsoformSwitchAnalyzeR](#isoformswitchanalyzer) - Isoform switch import and differential isoform usage analysis
 - [ISAR visualization](#isar-visualization) - Lightweight plots and candidate tables from IsoformSwitchAnalyzeR output
 - [ISAR contrast summary](#isar-contrast-summary) - Cross-comparison bar and UpSet-style plots for significant isoform switches
+- [GO enrichment](#go-enrichment) - Optional gene ontology enrichment for significant switching genes
 - [Pfam annotation](#pfam-annotation) - Optional protein-domain annotation for significant switch candidates
 - [IUPred2A annotation](#iupred2a-annotation) - Optional intrinsically disordered region and ANCHOR2 annotation
 - [SignalP annotation](#signalp-annotation) - Optional signal peptide annotation
@@ -154,6 +155,21 @@ The ISAR visualization step is controlled by `--run_isar_visualization` and `--i
 </details>
 
 The contrast summary is generated from the analyzed IsoformSwitchAnalyzeR result and uses the configured `--isar_qvalue_cutoff` and `--isar_dif_cutoff`. It is most informative when `--contrasts` contains multiple pairwise comparisons.
+
+### GO enrichment
+
+GO enrichment support is optional and controlled by `--run_go_enrichment`. It summarizes genes with significant isoform switches per contrast and runs WebGestaltR over-representation analysis against Gene Ontology or another configured WebGestaltR database.
+
+- `go/`
+  - `go_input/go_gene_scores.csv`: per-contrast gene table with minimum switch q-value, maximum absolute dIF, and significance status.
+  - `go_input/*_significant_genes.txt`: significant switching genes submitted for each contrast.
+  - `go_input/*_background_genes.txt`: background genes used for each contrast.
+  - `go_enrichment.csv`: combined enrichment table across contrasts.
+  - `*_go_enrichment.csv`: per-contrast enrichment result tables.
+  - `go_summary.txt`: status, gene counts, database settings, and any skip/failure notes.
+  - `webgestalt_report/`: WebGestaltR report directories when enrichment is executed.
+
+The default background universe is all genes tested by IsoformSwitchAnalyzeR for the corresponding contrast. Use `--go_reference_gene_file` only when a custom newline-delimited background gene universe is needed. GO enrichment is gene-level, so it complements rather than replaces isoform-level annotated switch plots.
 
 ### Pfam annotation
 

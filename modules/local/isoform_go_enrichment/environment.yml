@@ -1,0 +1,7 @@
+name: isoform_go_enrichment
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - r-base
+  - bioconductor-webgestaltr

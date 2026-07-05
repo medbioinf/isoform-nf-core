@@ -188,6 +188,36 @@
                     "default": 20,
                     "description": "Number of largest isoform-switch intersections to show in the UpSet-style contrast summary plot."
                 },
+                "run_go_enrichment": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Run optional GO enrichment on significant isoform-switching genes after IsoformSwitchAnalyzeR.",
+                    "help_text": "When enabled, the pipeline summarizes significant switching genes per contrast and runs WebGestaltR over-representation analysis. This is off by default because it adds an extra runtime dependency and may require online WebGestalt/database access."
+                },
+                "go_organism": {
+                    "type": "string",
+                    "default": "hsapiens",
+                    "description": "WebGestaltR organism code used for GO enrichment."
+                },
+                "go_gene_id_type": {
+                    "type": "string",
+                    "default": "genesymbol",
+                    "description": "WebGestaltR gene identifier type used for significant and background gene lists.",
+                    "help_text": "Use genesymbol for gene symbols or another WebGestaltR-supported identifier type when the supplied reference uses different gene IDs."
+                },
+                "go_database": {
+                    "type": "string",
+                    "default": "geneontology_Biological_Process",
+                    "description": "WebGestaltR enrichment database used for GO enrichment."
+                },
+                "go_reference_gene_file": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "pattern": "^([\\S\\s]*\\/)?[^\\s\\/]+\\.txt$",
+                    "description": "Optional newline-delimited background gene universe for GO enrichment.",
+                    "help_text": "Defaults to all ISAR-tested genes for each contrast. Provide this only when you need a custom reference universe."
+                },
                 "run_pfam_prepare": {
                     "type": "boolean",
                     "default": false,
