@@ -16,10 +16,8 @@ For the normal reproducible path, the user should bring:
 - Optionally, a genome FASTA for Salmon decoy-aware indexing.
 - Optionally, a contrast file if the dataset has more than one comparison.
 - Optionally, a prepared Pfam database directory if Pfam domain annotation should be run.
-- Optionally, no extra reference resource for IUPred2A; it runs from extracted protein sequences when enabled.
-- Optionally, no extra reference resource for SignalP; it runs from extracted protein sequences when enabled, but the configured container must be available.
-- Optionally, no extra reference resource for DeepTMHMM; it runs from extracted protein sequences when enabled, but it is compute-heavy.
-- Optionally, no extra reference resource for DeepLoc2; it runs from extracted protein sequences when enabled, but first use may download model assets.
+
+IUPred2A, SignalP, DeepTMHMM, and DeepLoc2 do not require separate user-provided reference databases like Pfam. Their practical requirements are container availability, runtime, and in some cases model/cache availability, described below.
 
 The user does **not** need to manually install FastQC, fastp, Salmon, SRA Toolkit, MultiQC, Pfam scan, or IsoformSwitchAnalyzeR when using a container profile. Those tools run inside containers selected by the pipeline.
 
@@ -53,12 +51,14 @@ Recommended local or VM profile:
 -profile docker
 ```
 
-Recommended HPC profiles usually use one of:
+Common HPC profiles are:
 
 ```bash
 -profile apptainer
 -profile singularity
 ```
+
+The repository includes both profiles because Apptainer and Singularity are standard on many clusters. However, the current end-to-end validation for this project has been done with Docker. Treat Apptainer/Singularity as supported profile definitions that still need site-specific validation, especially when enabling optional annotation tools such as SignalP, IUPred2A, DeepTMHMM, and DeepLoc2.
 
 Why this matters:
 
@@ -235,7 +235,7 @@ The `.h3*` files are HMMER index files generated with:
 hmmpress Pfam-A.hmm
 ```
 
-If index files are missing, the pipeline currently tries to run `hmmpress`. For shared HPC/VM use, it is better to prepare the Pfam database once and reuse it.
+`Pfam-A.hmm.dat` is metadata used by `pfam_scan.pl`; it cannot be generated with `hmmpress` and must be downloaded together with `Pfam-A.hmm`. If index files are missing, the pipeline currently tries to run `hmmpress`. For shared HPC/VM use, it is better to prepare the Pfam database once and reuse it.
 
 Why the database is not downloaded by default:
 
@@ -290,7 +290,7 @@ It does not require a separate biological reference database. The pipeline extra
 
 The main practical prerequisite is container availability. The current implementation uses the `docker.io/deeptmhmm/deeptmhmm:latest` container image.
 
-DeepTMHMM is computationally heavier than lightweight plotting. In the GSE50760 4-vs-4 validation subset, DeepTMHMM processed 2958 protein sequences and dominated the optional annotation runtime. Treat it as an interpretation module for selected real analyses, not as a default quick smoke-test step.
+DeepTMHMM is computationally heavier than lightweight plotting. Its runtime scales with the number of extracted protein sequences and can dominate optional annotation runtime in real datasets. Treat it as an interpretation module for selected real analyses, not as a default quick smoke-test step.
 
 ## Optional DeepLoc2 Prerequisites
 
@@ -321,7 +321,7 @@ Expect disk usage from:
 - optional DeepTMHMM embeddings and topology outputs
 - optional DeepLoc2 model cache and prediction outputs
 
-Pfam scanning, DeepTMHMM, and DeepLoc2 can be noticeably slower than lightweight plotting steps. In our GSE50760 validation subsets, these were substantial enough to treat them as annotation modules, not tiny visualization add-ons.
+Pfam scanning, DeepTMHMM, and DeepLoc2 can be noticeably slower than lightweight plotting steps. Treat them as annotation modules, not tiny visualization add-ons.
 
 Practical advice:
 

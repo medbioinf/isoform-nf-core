@@ -1,6 +1,6 @@
 # Workflow Implementation Walkthrough
 
-Last updated: 2026-06-02
+Last updated: 2026-07-05
 
 This document walks through the implementation from the Nextflow entry point to the final outputs. It explains what each workflow component does, which files it consumes, which files it emits, and why it exists.
 
@@ -44,10 +44,13 @@ This is a small wrapper around the actual scientific workflow:
 ISOFORM(samplesheet, sra_manifest, metadata_file)
 ```
 
-It emits:
+It exposes these workflow channels:
 
 - `quant_results`
 - `isar_results`
+- `isar_visualization_results`
+- optional annotation results for Pfam, IUPred2A, SignalP, DeepTMHMM, and DeepLoc2
+- `annotated_switch_plot_results`
 - `multiqc_report`
 
 ### `PIPELINE_COMPLETION`
@@ -73,12 +76,31 @@ include { SALMON_INDEX } from '../modules/nf-core/salmon/index/main'
 include { SALMON_QUANT } from '../modules/nf-core/salmon/quant/main'
 include { FETCH_SRA_FASTQ } from '../modules/local/fetch_sra_fastq/main'
 include { ISAR_ANALYSIS } from '../modules/local/isar_analysis/main'
+include { ISAR_VISUALIZATION } from '../modules/local/isar_visualization/main'
+include { ISAR_CONTRAST_SUMMARY } from '../modules/local/isar_contrast_summary/main'
+include { PFAM_PREPARE } from '../modules/local/pfam_prepare/main'
+include { PFAM_SCAN } from '../modules/local/pfam_scan/main'
+include { PFAM_IMPORT } from '../modules/local/pfam_import/main'
+include { PFAM_VISUALIZATION } from '../modules/local/pfam_visualization/main'
+include { IUPRED2A_PREPARE } from '../modules/local/iupred2a_prepare/main'
+include { IUPRED2A_RUN } from '../modules/local/iupred2a_run/main'
+include { IUPRED2A_IMPORT } from '../modules/local/iupred2a_import/main'
+include { SIGNALP_PREPARE } from '../modules/local/signalp_prepare/main'
+include { SIGNALP_RUN } from '../modules/local/signalp_run/main'
+include { SIGNALP_IMPORT } from '../modules/local/signalp_import/main'
+include { DEEPTMHMM_PREPARE } from '../modules/local/deeptmhmm_prepare/main'
+include { DEEPTMHMM_RUN } from '../modules/local/deeptmhmm_run/main'
+include { DEEPTMHMM_IMPORT } from '../modules/local/deeptmhmm_import/main'
+include { DEEPLOC2_PREPARE } from '../modules/local/deeploc2_prepare/main'
+include { DEEPLOC2_RUN } from '../modules/local/deeploc2_run/main'
+include { DEEPLOC2_IMPORT } from '../modules/local/deeploc2_import/main'
+include { ANNOTATED_SWITCH_PLOTS } from '../modules/local/annotated_switch_plots/main'
 include { MULTIQC } from '../modules/nf-core/multiqc/main'
 ```
 
 The key design idea is:
 
-> Convert all inputs to FASTQ sample tuples as early as possible, then run one shared analysis path.
+> Convert all inputs to FASTQ sample tuples as early as possible, run one shared quantification path, and then attach optional interpretation modules after IsoformSwitchAnalyzeR.
 
 This means FASTQ mode and SRA mode do not need separate QC, trimming, Salmon, or ISAR workflows.
 
@@ -473,21 +495,17 @@ The tiny test reference and real references can differ in transcript coverage. F
 
 ### When the Statistical Test Runs
 
-The R script checks:
+The R script builds comparisons in two ways:
 
-```r
-can_run_test <- length(condition_counts) == 2 &&
-    all(condition_counts >= 2) &&
-    !is.null(comparisons)
-```
+- If `--contrasts` is supplied, each row defines one pairwise comparison with `case` and `control` conditions.
+- If no contrast file is supplied and the dataset has exactly two conditions, the script creates one pairwise comparison automatically.
 
-So DEXSeq-based testing runs only when:
+DEXSeq-based testing runs when:
 
-- there are exactly two conditions
-- each condition has at least two samples
-- a comparison can be defined
+- at least one comparison can be defined
+- each condition used by those comparisons has at least two samples
 
-If not, the script still imports the data and writes an analysis note explaining why testing was skipped.
+This allows datasets with more than two conditions to run multiple pairwise contrasts in one workflow execution. If testing cannot be run, the script still imports the data and writes an analysis note explaining why testing was skipped.
 
 ### Important ISAR Outputs
 
@@ -509,7 +527,117 @@ Important files:
 - `analysis_notes.txt`: human-readable notes.
 - `sessionInfo.txt`: R package/session versions.
 
-## Step 9: Software Versions
+## Step 9: ISAR Visualization and Contrast Summary
+
+These modules run after `ISAR_ANALYSIS` when enabled.
+
+Modules:
+
+```text
+modules/local/isar_visualization/main.nf
+modules/local/isar_contrast_summary/main.nf
+```
+
+Helper scripts:
+
+```text
+bin/run_isar_visualization.R
+bin/run_isar_contrast_summary.R
+```
+
+`ISAR_VISUALIZATION` creates lightweight IsoformSwitchAnalyzeR plots and top-candidate tables from the analyzed ISAR object. It does not add external annotation.
+
+`ISAR_CONTRAST_SUMMARY` summarizes significant isoform switches across comparisons. It writes a per-comparison count table and plot, plus an UpSet-style intersection plot for multi-contrast experiments.
+
+Both modules are downstream consumers of `ISAR_ANALYSIS.out.results`. They are written to exit successfully with notes and empty tables when there are no significant switches to plot.
+
+## Step 10: Optional Annotation Chain
+
+The optional annotation modules all start from the ISAR result object and, when possible, create an updated annotated ISAR object.
+
+The workflow tracks this with:
+
+```nextflow
+ch_current_annotated_isar = ISAR_ANALYSIS.out.results
+```
+
+Each successful import updates that channel:
+
+```nextflow
+ch_current_annotated_isar = PFAM_IMPORT.out.results
+ch_current_annotated_isar = IUPRED2A_IMPORT.out.results
+ch_current_annotated_isar = SIGNALP_IMPORT.out.results
+ch_current_annotated_isar = DEEPTMHMM_IMPORT.out.results
+ch_current_annotated_isar = DEEPLOC2_IMPORT.out.results
+```
+
+This means later annotation modules see the annotations imported by earlier modules, and annotated switch plots can use the newest available object.
+
+### Pfam
+
+Modules:
+
+```text
+modules/local/pfam_prepare/main.nf
+modules/local/pfam_scan/main.nf
+modules/local/pfam_import/main.nf
+modules/local/pfam_visualization/main.nf
+```
+
+Pfam has three modes:
+
+- `--pfam_db`: prepare amino-acid candidates, run `pfam_scan.pl`, and import the generated domain hits.
+- `--pfam_results`: import an existing `pfam_scan.pl` result file.
+- `--run_pfam_prepare`: prepare candidate FASTA files without necessarily running Pfam.
+
+`PFAM_VISUALIZATION` is optional and creates domain-consequence summaries and domain architecture plots after Pfam import.
+
+### IUPred2A, SignalP, DeepTMHMM, and DeepLoc2
+
+These modules follow a similar pattern:
+
+```text
+PREPARE -> RUN -> IMPORT
+```
+
+The prepare step extracts amino-acid sequences from significant switch candidates. If `--annotated_switch_genes` is supplied, those genes are force-included in the candidate FASTA so requested gene-level plots can be annotated even when automatic top-candidate selection differs across runs.
+
+The run step executes the external predictor or converts its output:
+
+- IUPred2A predicts intrinsically disordered regions and ANCHOR2 binding regions.
+- SignalP predicts signal peptides.
+- DeepTMHMM predicts transmembrane topology regions.
+- DeepLoc2 predicts subcellular localization labels.
+
+The import step uses the relevant IsoformSwitchAnalyzeR import/analyze function and writes a new annotated ISAR object for the next downstream step.
+
+## Step 11: Annotated Switch Plots
+
+Module:
+
+```text
+modules/local/annotated_switch_plots/main.nf
+```
+
+Helper script:
+
+```text
+bin/run_annotated_switch_plots.R
+```
+
+This module renders gene-level `switchPlot()` outputs from the newest available annotated ISAR object.
+
+Important parameters:
+
+- `--run_annotated_switch_plots`: enables the module.
+- `--annotated_switch_top_n`: number of automatically selected genes.
+- `--annotated_switch_genes`: comma-separated list of genes to plot.
+- `--annotated_switch_condition1` and `--annotated_switch_condition2`: optional comparison selection.
+- `--annotated_switch_plot_topology`: controls whether topology is shown when available.
+
+Available tracks depend on which upstream annotations were run and successfully imported.
+
+## Step 12: Software Versions
 
 The workflow collects tool versions from modules using nf-core conventions.
 
@@ -521,6 +649,7 @@ Examples:
 - SRA tools version
 - pigz version
 - IsoformSwitchAnalyzeR version
+- annotation tool versions where the modules emit them
 
 These are collected and written to:
 
@@ -530,7 +659,7 @@ pipeline_info/isoform_software_mqc_versions.yml
 
 MultiQC then includes these in the final report.
 
-## Step 10: MultiQC
+## Step 13: MultiQC
 
 Module:
 
@@ -575,11 +704,14 @@ flowchart TD
     J --> K["SALMON_QUANT"]
     L["SALMON_INDEX"] --> K
     K --> M["ISAR_ANALYSIS"]
-    H --> N["MULTIQC"]
-    J --> N
-    K --> N
-    M --> O["ISAR output files"]
-    N --> P["MultiQC report"]
+    M --> N["ISAR_VISUALIZATION"]
+    M --> O["ISAR_CONTRAST_SUMMARY"]
+    M --> P["optional annotation chain"]
+    P --> Q["ANNOTATED_SWITCH_PLOTS"]
+    H --> R["MULTIQC"]
+    J --> R
+    K --> R
+    R --> S["MultiQC report"]
 ```
 
 ## How Output Publishing Works
@@ -662,21 +794,3 @@ flowchart LR
 ```
 
 The module should handle no-switch or missing-annotation cases gracefully, because real small subsets may import successfully but have no significant switches or no matching annotation rows.
-
-## Current Implementation Strengths
-
-- FASTQ and SRA inputs converge into one shared pipeline path.
-- The main path reuses nf-core modules where possible.
-- Input validation catches common user mistakes early.
-- ISAR is isolated in one local module and one R script.
-- Visualization and annotation steps are split into optional local modules.
-- Tiny test data allows fast smoke tests.
-- Real SRA subset testing has already exercised the public-data path.
-
-## Current Implementation Risks
-
-- The ISAR R script is custom code and needs more tests.
-- Official nf-core publication will require removing remaining template TODOs and finalizing metadata.
-- Batch-aware statistical modeling is not implemented yet.
-- Optional annotation modules need broader real-data validation and careful runtime/container review.
-- SRA metadata inference from `GSE` / `GSM` accessions is not implemented.

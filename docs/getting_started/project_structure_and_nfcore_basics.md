@@ -64,7 +64,7 @@ Important nf-core ideas used in this repo:
 - Containers or Conda environments are specified per module.
 - MultiQC is used to collect QC and run metadata into one report.
 
-The current repository is nf-core-style, but it is not yet fully ready for official nf-core publication. It still has template TODOs, local modules that need hardening, and testing / documentation that should be expanded before submission.
+The current repository is nf-core-style, but it is not yet fully ready for official nf-core publication. Publication metadata, generated metadata files, local module hardening, testing, and documentation should still be expanded before submission.
 
 ## Top-level Files
 
@@ -374,25 +374,14 @@ nextflow run . ... -resume
 
 The `--outdir` folder is what users normally inspect and archive.
 
-## What Is Still Prototype-like
-
-The repository is already usable for the current reference-based path, but several parts are still evolving:
-
-- Some nf-core template TODO comments remain.
-- Official nf-core publication metadata still needs final cleanup.
-- SRA mode is intentionally minimal.
-- ISAR statistical testing is still pairwise, although multiple pairwise contrasts can be supplied in one run.
-- Batch metadata is validated and carried through input handling, but it is not yet modeled statistically.
-- Optional annotation tools are integrated, but remain expensive and need more real-data validation across datasets.
-- Novel isoform detection is out of scope for the current workflow.
-
 ## Recommended Reading Order
 
 If you are new to the repo, read these documents in this order:
 
-1. `docs/getting_started/project_structure_and_nfcore_basics.md`
-2. `docs/getting_started/tools_and_biology_explained.md`
-3. `docs/getting_started/interface_and_inputs_explained.md`
-4. `docs/developer/workflow_implementation_walkthrough.md`
-5. `docs/usage.md`
-6. `docs/output.md`
+1. [Project structure and nf-core basics](project_structure_and_nfcore_basics.md): repository layout, Nextflow concepts, and how the pipeline pieces fit together.
+2. [Tools and biology explained](tools_and_biology_explained.md): genes, transcripts, isoforms, read types, references, and the tools in plain language.
+3. [Interface and inputs explained](interface_and_inputs_explained.md): samplesheets, SRA manifests, contrasts, references, and validation rules.
+4. [Prerequisites to run the pipeline](prerequisites.md): runtime setup, reference requirements, annotation resources, and compute expectations.
+5. [Usage](../usage.md): concise command-line usage for routine runs.
+6. [Output](../output.md): result folders, key files, and how to interpret outputs.
+7. [Workflow implementation walkthrough](../developer/workflow_implementation_walkthrough.md): code-oriented explanation of the main workflow, modules, and helper scripts.
