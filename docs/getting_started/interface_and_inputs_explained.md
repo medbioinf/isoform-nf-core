@@ -149,7 +149,7 @@ A batch is a technical grouping that might affect measurements, such as:
 - library preparation batch
 - lab processing batch
 
-The current V1 pipeline validates and carries the `batch` value, but the first ISAR implementation does not yet model batch effects statistically. It is included because it is useful metadata and gives us room to support batch-aware analysis later.
+The current pipeline validates and carries the `batch` value, but the ISAR implementation does not yet model batch effects statistically. It is included because it is useful metadata and gives us room to support batch-aware analysis later.
 
 ## Input Mode 2: SRA Manifest
 
@@ -212,7 +212,7 @@ It does not yet infer runs from higher-level accessions such as:
 - `GSM...`
 - `SRP...`
 
-This is intentional for V1. Resolving higher-level accessions into runs requires additional metadata fetching and more edge-case handling.
+This is intentional for the current SRA mode. Resolving higher-level accessions into runs requires additional metadata fetching and more edge-case handling.
 
 ## Contrast File
 
@@ -278,7 +278,7 @@ When multiple rows are supplied, the pipeline imports all samples once, asks Iso
 
 ## Reference Inputs
 
-The pipeline needs reference files because V1 is reference-based.
+The pipeline needs reference files because the current analysis is reference-based.
 
 ### `--transcript_fasta`
 
@@ -713,15 +713,15 @@ This early validation is important because otherwise errors would appear much la
 
 ## Current Interface Limitations
 
-The current V1 interface intentionally does not support every possible RNA-seq design.
+The current reusable interface intentionally does not support every possible RNA-seq design.
 
 Known limitations:
 
-- The statistical ISAR test path is currently designed for two-condition comparisons.
+- The statistical ISAR test path is pairwise. A contrast file can request multiple pairwise comparisons in one run, but each comparison is still case-versus-control.
 - Batch metadata is carried and validated but not yet modeled.
 - SRA mode requires run accessions and does not resolve `GSE` or `GSM` accessions automatically.
-- Novel isoform discovery is not part of V1.
-- Long-read RNA-seq input is not part of V1.
-- Some visualization options from the prototype pipeline are still being transferred module by module.
+- Novel isoform discovery is not part of the current workflow.
+- Long-read RNA-seq input is not part of the current workflow.
+- Optional annotation modules can add substantial runtime and storage requirements, especially on full real datasets.
 
 These limitations are not necessarily design flaws. They keep the first reusable version understandable and testable.

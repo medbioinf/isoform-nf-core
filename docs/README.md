@@ -1,6 +1,6 @@
 # Anton-Bch/isoform-nf-core: Documentation
 
-Last updated: 2026-06-05
+Last updated: 2026-07-05
 
 This documentation is grouped by use case. Start with the first section if you are new to Nextflow, nf-core, or isoform switch analysis.
 
@@ -20,14 +20,7 @@ This documentation is grouped by use case. Start with the first section if you a
 
 - [Workflow implementation walkthrough](developer/workflow_implementation_walkthrough.md): code-oriented walkthrough of `main.nf`, `workflows/isoform.nf`, modules, channels, helper scripts, and extension points.
 
-## Design and Roadmap
-
-- [V1 interface status](design/v1_interface_design.md): current implemented input contract and important V1 limitations.
-- [V1 architecture status](design/v1_architecture_plan.md): current module structure and remaining architecture decisions.
-- [V1 testing status and strategy](design/v1_testing_strategy.md): synthetic and real-data validation status plus remaining test work.
-- [Implementation validation log](design/implementation_validation_log.md): concrete checks performed for FASTQ, SRA, ISAR, visualization, and Pfam implementation steps.
-- [V1 packaging and roadmap status](design/v1_packaging_and_roadmap.md): current runtime/container choices and remaining hardening tasks.
-
 ## Operations
 
 - [Runtime monitoring](operations/runtime_monitoring.md): lightweight VM monitoring notes for long-running Nextflow executions.
+- [Implementation validation log](operations/implementation_validation_log.md): concrete checks performed for FASTQ, SRA, ISAR, visualization, annotation, and multi-contrast implementation steps.

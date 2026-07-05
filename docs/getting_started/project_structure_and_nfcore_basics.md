@@ -1,6 +1,6 @@
 # Project Structure and nf-core Basics
 
-Last updated: 2026-06-02
+Last updated: 2026-07-05
 
 This document explains how the repository is organized and how the current project fits into the usual Nextflow / nf-core style. It is written for readers who are still learning Nextflow, nf-core, and the biological context of the pipeline.
 
@@ -12,7 +12,7 @@ In plain terms, the pipeline answers this type of question:
 
 > Given RNA sequencing data from two biological conditions, do the cells use different transcript variants of the same gene?
 
-The current V1 path is:
+The current reusable path is:
 
 ```mermaid
 flowchart LR
@@ -22,10 +22,14 @@ flowchart LR
     D --> E["Build Salmon transcript index"]
     E --> F["Quantify transcript abundance with Salmon"]
     F --> G["Import and test isoform switches with IsoformSwitchAnalyzeR"]
-    G --> H["Collect reports with MultiQC"]
+    G --> H["ISAR visualizations and contrast summaries"]
+    G --> I["Optional functional annotations"]
+    I --> J["Annotated switch plots"]
+    H --> K["Collect reports with MultiQC"]
+    J --> K
 ```
 
-The important limitation is that V1 is reference-based. It can analyze transcripts that are present in the supplied transcript FASTA and GTF annotation. It does not yet discover novel transcripts that are missing from the reference.
+The important limitation is that the current workflow is reference-based. It can analyze transcripts that are present in the supplied transcript FASTA and GTF annotation. It does not yet discover novel transcripts that are missing from the reference.
 
 ## What Nextflow Provides
 
@@ -60,7 +64,7 @@ Important nf-core ideas used in this repo:
 - Containers or Conda environments are specified per module.
 - MultiQC is used to collect QC and run metadata into one report.
 
-The current repository is nf-core-style, but it is not yet fully ready for official nf-core publication. It still has template TODOs, local modules that need hardening, and documentation / tests that should be expanded before submission.
+The current repository is nf-core-style, but it is not yet fully ready for official nf-core publication. It still has template TODOs, local modules that need hardening, and testing / documentation that should be expanded before submission.
 
 ## Top-level Files
 
@@ -95,6 +99,9 @@ It wires together:
 - Salmon index
 - Salmon quantification
 - IsoformSwitchAnalyzeR
+- ISAR visualization and multi-contrast summaries
+- optional Pfam, IUPred2A, SignalP, DeepTMHMM, and DeepLoc2 annotation
+- optional annotated switch plots
 - MultiQC
 
 If you want to understand the end-to-end data flow, this is the most important file.
@@ -138,6 +145,14 @@ For example, it defines:
 - `--isar_dif_cutoff`
 - `--isar_qvalue_cutoff`
 - `--isar_top_n`
+- `--run_isar_visualization`
+- `--run_isar_contrast_summary`
+- `--run_pfam_prepare`
+- `--run_iupred2a`
+- `--run_signalp`
+- `--run_deeptmhmm`
+- `--run_deeploc2`
+- `--run_annotated_switch_plots`
 
 The schema is important because it is both documentation and validation. If a required reference file is missing, the pipeline can fail early with a helpful error instead of failing later inside Salmon or R.
 
@@ -172,6 +187,10 @@ This folder contains executable helper scripts.
 Currently important:
 
 - `run_isar_analysis.R`: imports Salmon results into IsoformSwitchAnalyzeR and runs the differential isoform usage test when the design has enough replicates.
+- `run_isar_visualization.R`: creates lightweight ISAR candidate tables and plots.
+- `run_isar_contrast_summary.R`: creates per-comparison counts and UpSet-style intersection plots.
+- `run_pfam_*`, `run_iupred2a_*`, `run_signalp_*`, `run_deeptmhmm_*`, and `run_deeploc2_*`: prepare, import, and summarize optional functional annotations.
+- `run_annotated_switch_plots.R`: renders gene-level switch plots with the newest available annotation layers.
 - `nextflow-vm-monitor`: utility script for monitoring a VM during long runs.
 
 In nf-core pipelines, scripts in `bin/` are automatically available on the task `PATH`, but this pipeline currently passes `run_isar_analysis.R` explicitly into the local ISAR module.
@@ -207,7 +226,6 @@ Important docs:
 - `output.md`: what files the pipeline creates.
 - `getting_started/`: beginner-friendly conceptual docs.
 - `developer/`: implementation walkthroughs and code-oriented docs.
-- `design/`: V1 design/status docs and roadmap notes.
 - `operations/`: runtime and infrastructure notes.
 
 ### `modules/`
@@ -232,6 +250,14 @@ Current local modules:
 
 - `fetch_sra_fastq`
 - `isar_analysis`
+- `isar_visualization`
+- `isar_contrast_summary`
+- `pfam_prepare`, `pfam_scan`, `pfam_import`, `pfam_visualization`
+- `iupred2a_prepare`, `iupred2a_run`, `iupred2a_import`
+- `signalp_prepare`, `signalp_run`, `signalp_import`
+- `deeptmhmm_prepare`, `deeptmhmm_run`, `deeptmhmm_import`
+- `deeploc2_prepare`, `deeploc2_run`, `deeploc2_import`
+- `annotated_switch_plots`
 
 The distinction matters for maintainability. nf-core modules are reusable and can often be updated from nf-core/modules. Local modules are our responsibility.
 
@@ -350,15 +376,15 @@ The `--outdir` folder is what users normally inspect and archive.
 
 ## What Is Still Prototype-like
 
-The repository is already usable for the current V1 path, but several parts are still evolving:
+The repository is already usable for the current reference-based path, but several parts are still evolving:
 
 - Some nf-core template TODO comments remain.
 - Official nf-core publication metadata still needs final cleanup.
 - SRA mode is intentionally minimal.
-- ISAR analysis currently supports the basic two-condition DEXSeq path.
-- Visualization from the prototype repo has not yet been transferred.
-- Optional annotation tools such as Pfam, SignalP, IUPred2A, DeepTMHMM, and DeepLoc2 are not yet integrated.
-- Novel isoform detection is out of scope for V1.
+- ISAR statistical testing is still pairwise, although multiple pairwise contrasts can be supplied in one run.
+- Batch metadata is validated and carried through input handling, but it is not yet modeled statistically.
+- Optional annotation tools are integrated, but remain expensive and need more real-data validation across datasets.
+- Novel isoform detection is out of scope for the current workflow.
 
 ## Recommended Reading Order
 

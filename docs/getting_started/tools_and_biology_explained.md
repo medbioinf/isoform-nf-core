@@ -1,6 +1,6 @@
 # Tools and Biology Explained
 
-Last updated: 2026-06-02
+Last updated: 2026-07-05
 
 This document explains the biological ideas and tools used by the current pipeline. It is written for readers who are not biologists.
 
@@ -60,7 +60,7 @@ This is one major reason genes can have multiple isoforms.
 
 ## Short Reads and Paired-end Reads
 
-The current V1 pipeline focuses on short-read RNA-seq, usually Illumina-style data.
+The current pipeline focuses on short-read RNA-seq, usually Illumina-style data.
 
 ### Single-end
 
@@ -363,9 +363,9 @@ Instead of opening one FastQC file per sample, one fastp report per sample, and 
 
 It is mainly a reporting and QC aggregation tool.
 
-## Optional Tools Discussed for Future Integration
+## Optional Annotation Tools
 
-These tools are not currently part of the reusable V1 implementation, but they were explored or discussed in the prototype work.
+These tools are integrated as optional modules. They run after IsoformSwitchAnalyzeR and add biological interpretation to significant isoform switch candidates. Their outputs are available as standalone tables and summary plots, and the imported annotations can also be used by the annotated switch plot module.
 
 ### Pfam
 
@@ -381,7 +381,7 @@ Why useful:
 
 Pfam can help explain the biological consequence of an isoform switch.
 
-Integration challenge:
+Operational note:
 
 Pfam needs a large database and additional runtime handling.
 
@@ -399,7 +399,7 @@ Why useful:
 
 An isoform switch could add or remove this address label.
 
-Integration challenge:
+Operational note:
 
 Licensing and reproducible container availability need careful review.
 
@@ -417,6 +417,10 @@ Why useful:
 
 An isoform switch could add or remove disordered regions.
 
+Operational note:
+
+The current container is usable for the pipeline, but long-term public release should still review container provenance and runtime reporting behavior.
+
 ### DeepTMHMM
 
 Purpose:
@@ -431,6 +435,10 @@ Why useful:
 
 An isoform switch could change whether a protein is membrane-bound or which side of a membrane a region faces.
 
+Operational note:
+
+DeepTMHMM can be slow on real datasets because model inference is more expensive than simple table conversion.
+
 ### DeepLoc2
 
 Purpose:
@@ -444,6 +452,10 @@ Predicts where a protein likely goes inside the cell, such as nucleus, cytoplasm
 Why useful:
 
 An isoform switch could change where the protein acts.
+
+Operational note:
+
+DeepLoc2 may need model assets and can require more runtime on first use depending on the container cache state.
 
 ## Why We Do Not Integrate Everything Immediately
 

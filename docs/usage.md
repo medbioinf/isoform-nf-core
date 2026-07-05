@@ -127,6 +127,17 @@ After Salmon quantification, the pipeline imports the transcript-level abundance
 
 The pipeline also writes `isar/isar_contrast_summary/` by default. This directory contains a per-comparison significant-switch bar plot and an UpSet-style plot summarizing which significant isoform switches are shared across multiple contrasts.
 
+Optional annotation modules can be enabled when you want biological interpretation of significant switch candidates:
+
+- `--pfam_db` or `--pfam_results` adds protein-domain annotation.
+- `--run_iupred2a` adds intrinsically disordered region and ANCHOR2 predictions.
+- `--run_signalp` adds signal peptide predictions.
+- `--run_deeptmhmm` adds transmembrane topology predictions.
+- `--run_deeploc2` adds subcellular localization predictions.
+- `--run_annotated_switch_plots` renders gene-level switch plots using the newest available annotation layers.
+
+These modules are optional because they add extra runtime, storage, and container or database requirements. For quick statistical runs, leave them disabled. For publication-style inspection of selected genes, enable the relevant annotation modules and optionally set `--annotated_switch_genes`.
+
 Note that the pipeline will create the following files in your working directory:
 
 ```bash

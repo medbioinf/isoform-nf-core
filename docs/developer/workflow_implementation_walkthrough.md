@@ -652,16 +652,16 @@ The current recommended pattern for adding a new component is:
 8. Add usage docs to `docs/usage.md`.
 9. Add or update nf-test coverage.
 
-For example, transferring prototype visualizations should probably become a local module after `ISAR_ANALYSIS`:
+For example, a new downstream visualization should usually become a local module after `ISAR_ANALYSIS` or after the relevant annotation import:
 
 ```mermaid
 flowchart LR
-    A["ISAR_ANALYSIS"] --> B["ISAR_VISUALIZATION"]
-    B --> C["plots and candidate tables"]
-    B --> D["MultiQC or output folder"]
+    A["ISAR_ANALYSIS"] --> B["new local module"]
+    B --> C["tables and plots"]
+    B --> D["published output folder"]
 ```
 
-The visualization module should handle no-switch cases gracefully, because real small subsets may import successfully but have no significant switches.
+The module should handle no-switch or missing-annotation cases gracefully, because real small subsets may import successfully but have no significant switches or no matching annotation rows.
 
 ## Current Implementation Strengths
 
@@ -669,6 +669,7 @@ The visualization module should handle no-switch cases gracefully, because real 
 - The main path reuses nf-core modules where possible.
 - Input validation catches common user mistakes early.
 - ISAR is isolated in one local module and one R script.
+- Visualization and annotation steps are split into optional local modules.
 - Tiny test data allows fast smoke tests.
 - Real SRA subset testing has already exercised the public-data path.
 
@@ -677,6 +678,5 @@ The visualization module should handle no-switch cases gracefully, because real 
 - The ISAR R script is custom code and needs more tests.
 - Official nf-core publication will require removing remaining template TODOs and finalizing metadata.
 - Batch-aware statistical modeling is not implemented yet.
-- Visualization is not yet transferred from the prototype repo.
-- Optional annotation tools are not yet integrated.
+- Optional annotation modules need broader real-data validation and careful runtime/container review.
 - SRA metadata inference from `GSE` / `GSM` accessions is not implemented.

@@ -2,7 +2,7 @@
 
 Last updated: 2026-06-21
 
-This document records what we tested while implementing the current reusable pipeline. It complements the higher-level [V1 testing strategy](v1_testing_strategy.md) by documenting concrete validation runs, what each run was meant to prove, and what we learned.
+This document records what we tested while implementing the current reusable pipeline. It documents concrete validation runs, what each run was meant to prove, and what we learned.
 
 The goal is not to claim that every step is fully production-tested. The goal is to keep a clear project record of how each implementation step was checked.
 
