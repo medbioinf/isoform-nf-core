@@ -1,9 +1,0 @@
-sample,condition,replicate,run_accession,strandedness,batch
-AMC_2-1,primary_crc,1,SRR975551,auto,gse50760
-AMC_3-1,primary_crc,2,SRR975552,auto,gse50760
-AMC_5-1,primary_crc,3,SRR975553,auto,gse50760
-AMC_6-1,primary_crc,4,SRR975554,auto,gse50760
-AMC_2-2,normal_colon,1,SRR975569,auto,gse50760
-AMC_3-2,normal_colon,2,SRR975570,auto,gse50760
-AMC_5-2,normal_colon,3,SRR975571,auto,gse50760
-AMC_6-2,normal_colon,4,SRR975572,auto,gse50760
