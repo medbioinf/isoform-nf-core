@@ -363,7 +363,28 @@ DEXSeq helps answer:
 
 > Is the isoform usage difference between conditions larger than expected from normal replicate variation?
 
-## Tool 7: MultiQC
+## Tool 7: WebGestaltR
+
+Used in:
+
+```text
+modules/local/isoform_go_enrichment
+bin/run_go_enrichment.R
+```
+
+Purpose:
+
+Run gene ontology or other gene-set enrichment analyses for genes with significant isoform switches.
+
+Non-biologist explanation:
+
+IsoformSwitchAnalyzeR finds individual switching genes and isoforms. WebGestaltR asks whether those switching genes share broader biological themes, such as immune response, cell adhesion, or membrane organization.
+
+Important distinction:
+
+GO enrichment is gene-level. It does not explain which exact isoform gained or lost a protein domain. It complements the annotated switch plots, which remain the better view for detailed isoform-level consequences.
+
+## Tool 8: MultiQC
 
 Used in:
 

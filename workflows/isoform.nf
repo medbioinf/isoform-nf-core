@@ -12,6 +12,7 @@ include { FETCH_SRA_FASTQ        } from '../modules/local/fetch_sra_fastq/main'
 include { ISAR_ANALYSIS          } from '../modules/local/isar_analysis/main'
 include { ISAR_VISUALIZATION     } from '../modules/local/isar_visualization/main'
 include { ISAR_CONTRAST_SUMMARY  } from '../modules/local/isar_contrast_summary/main'
+include { ISOFORM_GO_ENRICHMENT  } from '../modules/local/isoform_go_enrichment/main'
 include { PFAM_PREPARE           } from '../modules/local/pfam_prepare/main'
 include { PFAM_SCAN              } from '../modules/local/pfam_scan/main'
 include { PFAM_IMPORT            } from '../modules/local/pfam_import/main'
@@ -127,6 +128,7 @@ workflow ISOFORM {
     ch_isar_results = channel.empty()
     ch_isar_visualization_results = channel.empty()
     ch_isar_contrast_summary_results = channel.empty()
+    ch_go_enrichment_results = channel.empty()
     ch_pfam_prepare_results = channel.empty()
     ch_pfam_scan_results = channel.empty()
     ch_pfam_import_results = channel.empty()
@@ -179,6 +181,22 @@ workflow ISOFORM {
                 ISAR_ANALYSIS.out.results
             )
             ch_isar_contrast_summary_results = ISAR_CONTRAST_SUMMARY.out.results
+        }
+
+        if (params.run_go_enrichment) {
+            ch_go_enrichment_script = channel.value(file("${projectDir}/bin/run_go_enrichment.R", checkIfExists: true))
+            ch_go_reference_gene_file = params.go_reference_gene_file ?
+                channel.value(file(params.go_reference_gene_file, checkIfExists: true)) :
+                channel.value([])
+            ISOFORM_GO_ENRICHMENT (
+                ch_go_enrichment_script,
+                ISAR_ANALYSIS.out.results,
+                ch_go_reference_gene_file
+            )
+            ch_go_enrichment_results = ISOFORM_GO_ENRICHMENT.out.enrichment
+            ch_multiqc_files = ch_multiqc_files.mix(ISOFORM_GO_ENRICHMENT.out.enrichment)
+            ch_multiqc_files = ch_multiqc_files.mix(ISOFORM_GO_ENRICHMENT.out.summary)
+            ch_versions = ch_versions.mix(ISOFORM_GO_ENRICHMENT.out.versions)
         }
 
         if (params.run_pfam_prepare || (!params.pfam_results && params.pfam_db)) {
@@ -409,6 +427,7 @@ workflow ISOFORM {
     isar_results   = ch_isar_results                // channel: path(isar_analysis)
     isar_visualization_results = ch_isar_visualization_results // channel: path(isar_visualization)
     isar_contrast_summary_results = ch_isar_contrast_summary_results // channel: path(isar_contrast_summary)
+    go_enrichment_results = ch_go_enrichment_results // channel: path(go_enrichment.csv)
     pfam_prepare_results = ch_pfam_prepare_results  // channel: path(pfam_prepare)
     pfam_scan_results = ch_pfam_scan_results        // channel: path(pfam_scan.out)
     pfam_import_results = ch_pfam_import_results    // channel: path(pfam_import)

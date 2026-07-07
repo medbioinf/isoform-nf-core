@@ -25,9 +25,10 @@ The current workflow runs:
 5. Transcript quantification with [`Salmon`](https://salmon.readthedocs.io/)
 6. Isoform switch import and testing with [`IsoformSwitchAnalyzeR`](https://bioconductor.org/packages/IsoformSwitchAnalyzeR/)
 7. ISAR summary visualizations, including per-comparison counts and UpSet-style intersections
-8. Optional functional annotation with Pfam, IUPred2A, SignalP, DeepTMHMM, and DeepLoc2
-9. Optional annotated gene-level switch plots
-10. Aggregated reporting with [`MultiQC`](http://multiqc.info/)
+8. Optional GO enrichment for significant switching genes with WebGestaltR
+9. Optional functional annotation with Pfam, IUPred2A, SignalP, DeepTMHMM, and DeepLoc2
+10. Optional annotated gene-level switch plots
+11. Aggregated reporting with [`MultiQC`](http://multiqc.info/)
 
 ## Usage
 
@@ -70,7 +71,7 @@ nextflow run Anton-Bch/isoform-nf-core \
    --outdir <OUTDIR>
 ```
 
-The core workflow runs read QC, optional run concatenation, fastp preprocessing, Salmon transcript quantification, IsoformSwitchAnalyzeR import / switch testing, lightweight ISAR visualizations, and multi-contrast summaries. Functional annotation modules are optional because they add extra runtime, storage, and external resource requirements.
+The core workflow runs read QC, optional run concatenation, fastp preprocessing, Salmon transcript quantification, IsoformSwitchAnalyzeR import / switch testing, lightweight ISAR visualizations, and multi-contrast summaries. GO enrichment and functional annotation modules are optional because they add extra runtime, storage, and external resource requirements.
 
 > [!WARNING]
 > Please provide pipeline parameters via the CLI or Nextflow `-params-file` option. Custom config files including those provided by the `-c` Nextflow option can be used to provide any configuration _**except for parameters**_; see [docs](https://nf-co.re/docs/usage/getting_started/configuration#custom-configuration-files).

@@ -42,15 +42,15 @@ TREATMENT_REP3,treatment,3,AEG588A6_S6_L003_R1_001.fastq.gz,,auto,batch1
 TREATMENT_REP3,treatment,3,AEG588A6_S6_L004_R1_001.fastq.gz,,auto,batch1
 ```
 
-| Column    | Description                                                                                                                                                                            |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sample`  | Custom sample name. This entry will be identical for multiple sequencing libraries/runs from the same sample. Spaces in sample names are automatically converted to underscores (`_`). |
-| `condition` | Biological or experimental condition for this sample, for example `control` or `treatment`. |
-| `replicate` | Positive integer replicate number within the condition. |
-| `fastq_1` | Full path to FastQ file for Illumina short reads 1. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz".                                                             |
-| `fastq_2` | Full path to FastQ file for Illumina short reads 2. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz".                                                             |
-| `strandedness` | Library strandedness. Must be one of `auto`, `forward`, `reverse`, or `unstranded`. |
-| `batch` | Optional batch label for downstream analyses. |
+| Column         | Description                                                                                                                                                                            |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sample`       | Custom sample name. This entry will be identical for multiple sequencing libraries/runs from the same sample. Spaces in sample names are automatically converted to underscores (`_`). |
+| `condition`    | Biological or experimental condition for this sample, for example `control` or `treatment`.                                                                                            |
+| `replicate`    | Positive integer replicate number within the condition.                                                                                                                                |
+| `fastq_1`      | Full path to FastQ file for Illumina short reads 1. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz".                                                             |
+| `fastq_2`      | Full path to FastQ file for Illumina short reads 2. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz".                                                             |
+| `strandedness` | Library strandedness. Must be one of `auto`, `forward`, `reverse`, or `unstranded`.                                                                                                    |
+| `batch`        | Optional batch label for downstream analyses.                                                                                                                                          |
 
 An [example samplesheet](../assets/samplesheet.csv) has been provided with the pipeline.
 
@@ -126,6 +126,8 @@ The current reusable path uses the transcript FASTA to build a Salmon index, the
 After Salmon quantification, the pipeline imports the transcript-level abundance estimates into `IsoformSwitchAnalyzeR`. If a contrast file is supplied, the pipeline runs the requested pairwise comparisons in one ISAR analysis when each contrast condition has at least two samples. If no contrast file is supplied, a two-condition dataset is tested as a single comparison. For very small smoke-test datasets, it still creates the `switchAnalyzeRlist` import object and records that statistical testing was skipped.
 
 The pipeline also writes `isar/isar_contrast_summary/` by default. This directory contains a per-comparison significant-switch bar plot and an UpSet-style plot summarizing which significant isoform switches are shared across multiple contrasts.
+
+GO enrichment can be enabled with `--run_go_enrichment`. This step takes significant switching genes from each ISAR contrast and asks whether they are over-represented in Gene Ontology or another WebGestaltR database. It is disabled by default because it adds a WebGestaltR runtime dependency and may require WebGestalt/database access.
 
 Optional annotation modules can be enabled when you want biological interpretation of significant switch candidates:
 

@@ -258,7 +258,7 @@ tail -f .nextflow.log
 Check running containers and disk use:
 
 ```bash
-docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
+docker ps
 df -h .
 du -sh work_20260705_gse50760_4v4v4_all_annotations results/20260705_gse50760_4v4v4_all_annotations 2>/dev/null
 ```
