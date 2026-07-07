@@ -327,6 +327,24 @@ If we test thousands of isoforms, some will look interesting by chance. The q-va
 
 Lower q-values mean stronger statistical support.
 
+### Cutoffs and Top Candidates
+
+The pipeline first applies both switch cutoffs:
+
+```text
+q-value < q-value cutoff
+absolute dIF >= dIF cutoff
+```
+
+Only isoforms that pass both filters are treated as significant switch candidates.
+
+Top-N outputs are then ranked from this filtered candidate set. In most candidate tables, the strongest candidates are sorted by:
+
+1. lowest isoform switch q-value
+2. largest absolute `dIF`
+
+This means an isoform with a very strong q-value but a tiny `dIF` is excluded before ranking if it does not pass the `dIF` cutoff.
+
 ### Why Replicates Matter
 
 IsoformSwitchAnalyzeR needs biological replicates to estimate normal variation inside each condition.
@@ -477,28 +495,6 @@ An isoform switch could change where the protein acts.
 Operational note:
 
 DeepLoc2 may need model assets and can require more runtime on first use depending on the container cache state.
-
-## Why We Do Not Integrate Everything Immediately
-
-It is tempting to add every tool mentioned by IsoformSwitchAnalyzeR, but that can make the first reusable pipeline fragile.
-
-Each additional tool can add:
-
-- new containers
-- new databases
-- license questions
-- long runtimes
-- extra parameters
-- new output formats
-- more tests
-- more failure modes
-
-The recommended strategy is:
-
-1. Make the core FASTQ/SRA to Salmon to ISAR path robust.
-2. Transfer lightweight visualizations.
-3. Add Pfam as the first optional annotation module.
-4. Add other annotation tools behind optional flags.
 
 ## What Results Mean in Practice
 

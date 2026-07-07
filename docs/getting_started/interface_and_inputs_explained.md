@@ -484,7 +484,7 @@ If this is provided, the pipeline imports Pfam domain hits into the ISAR object 
 
 Optional path to a Pfam database directory.
 
-If `--pfam_results` is not provided and `--pfam_db` is provided, the pipeline runs `pfam_scan.pl` itself on the prepared amino-acid FASTA. The directory should contain `Pfam-A.hmm` and preferably the `hmmpress` index files `Pfam-A.hmm.h3f`, `.h3i`, `.h3m`, and `.h3p`.
+If `--pfam_results` is not provided and `--pfam_db` is provided, the pipeline runs `pfam_scan.pl` itself on the prepared amino-acid FASTA. The directory must contain `Pfam-A.hmm` and `Pfam-A.hmm.dat`. The `hmmpress` index files `Pfam-A.hmm.h3f`, `.h3i`, `.h3m`, and `.h3p` are also needed; if they are missing, the pipeline currently tries to create them with `hmmpress`.
 
 ### `--pfam_top_n`
 
