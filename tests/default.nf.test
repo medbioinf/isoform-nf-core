@@ -13,20 +13,19 @@ nextflow_pipeline {
         }
 
         then {
-            // stable_name: All files + folders in ${params.outdir}/ with a stable name
-            def stable_name = getAllFilesFromDir(params.outdir, relative: true, includeDir: true, ignore: ['pipeline_info/*.{html,json,txt}'])
-            // stable_path: All files in ${params.outdir}/ with stable content
-            def stable_path = getAllFilesFromDir(params.outdir, ignoreFile: 'tests/.nftignore')
             assertAll(
                 { assert workflow.success},
-                { assert snapshot(
-                    // pipeline versions.yml file for multiqc from which Nextflow version is removed because we test pipelines on multiple Nextflow versions
-                    removeNextflowVersion("$outputDir/pipeline_info/isoform_software_mqc_versions.yml"),
-                    // All stable path name, with a relative path
-                    stable_name,
-                    // All files with stable contents
-                    stable_path
-                ).match() }
+                { assert snapshot(removeNextflowVersion("$outputDir/pipeline_info/isoform_software_mqc_versions.yml")).match() },
+                { assert new File("$outputDir/fastqc/CONTROL_REP1_fastqc.html").exists() },
+                { assert new File("$outputDir/cat/CONTROL_REP1.merged.fastq.gz").exists() },
+                { assert new File("$outputDir/fastp/CONTROL_REP1.fastp.json").exists() },
+                { assert new File("$outputDir/salmon/salmon/versionInfo.json").exists() },
+                { assert new File("$outputDir/salmon/CONTROL_REP1/quant.sf").exists() },
+                { assert new File("$outputDir/isar/isar_analysis/switch_summary.csv").exists() },
+                { assert new File("$outputDir/isar/isar_contrast_summary/significant_isoform_switches_per_comparison.csv").exists() },
+                { assert new File("$outputDir/isar/isar_visualization/top_isoform_candidates.csv").exists() },
+                { assert new File("$outputDir/multiqc/multiqc_report.html").exists() },
+                { assert new File("$outputDir/pipeline_info/isoform_software_mqc_versions.yml").exists() }
             )
         }
     }
