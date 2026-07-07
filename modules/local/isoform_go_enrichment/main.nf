@@ -25,7 +25,7 @@ process ISOFORM_GO_ENRICHMENT {
     def reference_arg = reference_gene_file ? "--reference-gene-file ${reference_gene_file}" : ''
     """
     Rscript ${go_script} \\
-        --isar-dir ${isar_results} \\
+        --gene-score-file ${isar_results}/go_gene_scores.csv \\
         --outdir . \\
         --organism ${params.go_organism} \\
         --gene-id-type ${params.go_gene_id_type} \\

@@ -112,6 +112,7 @@ If the samplesheet contains multiple rows with the same `sample` value, the pipe
   - `switchAnalyzeRlist_analyzed.rds`: analyzed IsoformSwitchAnalyzeR object after switch testing, when testing is possible.
   - `switch_summary.csv`: summary of detected isoform switches per comparison.
   - `top_switches.csv`: top-ranked switching genes/isoforms.
+  - `go_gene_scores.csv`: gene-level GO-enrichment handoff table with per-contrast q-value, dIF, and significance columns.
   - `analysis_notes.txt`: short run summary, including whether the DEXSeq-based switch test was run or skipped.
   - `sessionInfo.txt`: R session information for reproducibility.
 
@@ -161,7 +162,7 @@ The contrast summary is generated from the analyzed IsoformSwitchAnalyzeR result
 GO enrichment support is optional and controlled by `--run_go_enrichment`. It summarizes genes with significant isoform switches per contrast and runs WebGestaltR over-representation analysis against Gene Ontology or another configured WebGestaltR database.
 
 - `go/`
-  - `go_input/go_gene_scores.csv`: per-contrast gene table with minimum switch q-value, maximum absolute dIF, and significance status.
+  - `go_input/go_gene_scores.csv`: copy of the ISAR-generated per-contrast gene table used as GO enrichment input.
   - `go_input/*_significant_genes.txt`: significant switching genes submitted for each contrast.
   - `go_input/*_background_genes.txt`: background genes used for each contrast.
   - `go_enrichment.csv`: combined enrichment table across contrasts.
@@ -169,7 +170,7 @@ GO enrichment support is optional and controlled by `--run_go_enrichment`. It su
   - `go_summary.txt`: status, gene counts, database settings, and any skip/failure notes.
   - `webgestalt_report/`: WebGestaltR report directories when enrichment is executed.
 
-The default background universe is all genes tested by IsoformSwitchAnalyzeR for the corresponding contrast. Use `--go_reference_gene_file` only when a custom newline-delimited background gene universe is needed. GO enrichment is gene-level, so it complements rather than replaces isoform-level annotated switch plots.
+The GO module consumes `isar/isar_analysis/go_gene_scores.csv` rather than the serialized ISAR R object, so it only needs WebGestaltR at runtime. The default background universe is all genes tested by IsoformSwitchAnalyzeR for the corresponding contrast. Use `--go_reference_gene_file` only when a custom newline-delimited background gene universe is needed. GO enrichment is gene-level, so it complements rather than replaces isoform-level annotated switch plots.
 
 ### Pfam annotation
 

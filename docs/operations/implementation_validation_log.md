@@ -807,6 +807,75 @@ Outcome:
 - The recommended user path is `--pfam_db`.
 - `--pfam_results` is documented as advanced/debug reuse.
 
+## GO Enrichment CSV Handoff Validation
+
+Date: 2026-07-07
+
+Implementation area:
+
+- optional GO enrichment module
+- `bin/run_go_enrichment.R`
+- `bin/run_isar_analysis.R`
+- `modules/local/isoform_go_enrichment`
+
+Issue discovered:
+
+- The first merged GO enrichment implementation read `switchAnalyzeRlist_analyzed.rds` directly inside the GO enrichment module.
+- The configured GO container, `docker.io/jungwooseok/webgestalt:1.0.3`, contains `WebGestaltR` but not `IsoformSwitchAnalyzeR`.
+- A direct VM validation against the completed GSE50760 ISAR result failed before enrichment with:
+
+```text
+unable to find required package 'IsoformSwitchAnalyzeR'
+there is no package called 'IsoformSwitchAnalyzeR'
+```
+
+Design change:
+
+- `run_isar_analysis.R` now exports `isar/isar_analysis/go_gene_scores.csv`.
+- `run_go_enrichment.R` consumes `--gene-score-file` instead of reading the serialized ISAR R object.
+- `ISOFORM_GO_ENRICHMENT` passes `isar_results/go_gene_scores.csv` to the GO script.
+- This keeps the GO module gene-level and WebGestalt-focused. It also removes the `IsoformSwitchAnalyzeR` runtime dependency from the GO enrichment container.
+
+VM validation performed:
+
+```bash
+nextflow run . \
+    -profile docker,test \
+    --run_go_enrichment \
+    --outdir results/20260707_go_enrichment_csv_handoff_test \
+    -work-dir work_20260707_go_enrichment_csv_handoff_test
+```
+
+Outcome:
+
+- The small real Docker test completed successfully.
+- `isar/isar_analysis/go_gene_scores.csv` was produced.
+- `go/go_input/go_gene_scores.csv` was produced as the GO-module input copy.
+- `go/go_enrichment.csv` and `go/go_summary.txt` were produced.
+- The test dataset had only two background genes, so WebGestaltR was correctly skipped with a clear summary note rather than failing.
+
+Additional real-data validation:
+
+- Used the completed GSE50760 4-vs-4-vs-4 ISAR result from `results/20260705_gse50760_4v4v4_all_annotations/isar/isar_analysis/`.
+- Exported a real GO gene-score table with 40,464 contrast-gene rows.
+- Ran `bin/run_go_enrichment.R` in the WebGestalt-only container using the exported CSV.
+
+Outcome:
+
+- GO enrichment ran successfully without `IsoformSwitchAnalyzeR` in the GO container.
+- Three contrasts were evaluated.
+- Significant gene counts:
+  - `liver_metastasis_vs_normal_colon`: 468
+  - `primary_crc_vs_normal_colon`: 729
+  - `liver_metastasis_vs_primary_crc`: 168
+- Two enriched biological-process terms were reported for `liver_metastasis_vs_primary_crc`.
+- The other two contrasts completed cleanly and reported no enriched terms at FDR 0.05.
+
+Operational note:
+
+- A broader GSE50760 `-resume` attempt was stopped because Nextflow began scheduling upstream SRA fetch tasks again. This was not needed to validate the GO runtime fix and would have wasted VM time.
+- The validation status after this change is: GO enrichment is real-data script/runtime validated and full Nextflow-wiring validated on the test dataset. A raw-SRA-to-GO full GSE50760 run after this refactor remains optional, expensive, and not required for the container dependency fix.
+
 ## Current Minimum Checks Before Future Commits
 
 For normal implementation changes:
@@ -815,6 +884,21 @@ For normal implementation changes:
 nextflow config -profile test,docker
 nextflow run . -profile test,docker --outdir results/test
 ```
+
+For changes touching GO enrichment workflow wiring:
+
+```bash
+nextflow run . \
+    -profile test,docker \
+    --run_go_enrichment \
+    --outdir results/test_go_enrichment
+```
+
+For changes touching real GO enrichment behavior:
+
+- Run a VM validation with a non-empty `isar/isar_analysis/go_gene_scores.csv`.
+- Confirm `go/go_input/go_gene_scores.csv`, per-contrast gene lists, `go/go_enrichment.csv`, and `go/go_summary.txt` are produced.
+- Confirm the GO enrichment container does not need `IsoformSwitchAnalyzeR`; it should consume the CSV handoff only.
 
 For changes touching Pfam workflow wiring:
 

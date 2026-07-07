@@ -84,19 +84,6 @@ first_non_missing <- function(values) {
     if (length(values) == 0) NA_character_ else values[[1]]
 }
 
-make_contrast_lookup <- function(isar_dir, features) {
-    comparisons_path <- file.path(isar_dir, "comparisons.csv")
-    if (file.exists(comparisons_path)) {
-        comparisons <- read.csv(comparisons_path, stringsAsFactors = FALSE, check.names = FALSE)
-        if (all(c("contrast", "condition_1", "condition_2") %in% colnames(comparisons))) {
-            return(unique(comparisons[, c("contrast", "condition_1", "condition_2"), drop = FALSE]))
-        }
-    }
-    lookup <- unique(features[, c("condition_1", "condition_2"), drop = FALSE])
-    lookup$contrast <- sprintf("%s_vs_%s", lookup$condition_2, lookup$condition_1)
-    lookup[, c("contrast", "condition_1", "condition_2"), drop = FALSE]
-}
-
 aggregate_gene_scores <- function(rows) {
     if (nrow(rows) == 0) {
         return(data.frame(
@@ -161,7 +148,7 @@ write_versions <- function(path) {
 
 opts <- parse_args(commandArgs(trailingOnly = TRUE))
 
-isar_dir <- normalizePath(required(opts, "isar-dir"), mustWork = TRUE)
+gene_score_file <- normalizePath(required(opts, "gene-score-file"), mustWork = TRUE)
 outdir <- required(opts, "outdir")
 organism <- opts[["organism"]] %||% "hsapiens"
 gene_id_type <- opts[["gene_id_type"]] %||% "genesymbol"
@@ -184,7 +171,7 @@ report_root <- file.path(outdir, "webgestalt_report")
 
 notes <- c(
     "GO enrichment summary",
-    sprintf("ISAR results: %s", isar_dir),
+    sprintf("Gene score file: %s", gene_score_file),
     sprintf("Organism: %s", organism),
     sprintf("Gene identifier type: %s", gene_id_type),
     sprintf("Database: %s", database),
@@ -192,34 +179,23 @@ notes <- c(
     sprintf("dIF cutoff: %.4f", dif_cutoff)
 )
 
-analyzed_rds <- file.path(isar_dir, "switchAnalyzeRlist_analyzed.rds")
 scores <- aggregate_gene_scores(data.frame())
 combined_enrichment <- data.frame()
 
-if (!file.exists(analyzed_rds)) {
-    notes <- c(notes, "Status: skipped", "No analyzed switchAnalyzeRlist RDS file was found. GO enrichment requires completed switch testing.")
-    write.csv(scores, file.path(go_input_dir, "go_gene_scores.csv"), row.names = FALSE)
-    write_empty_enrichment(file.path(outdir, "go_enrichment.csv"))
-    writeLines(notes, file.path(outdir, "go_summary.txt"))
-    write_versions(file.path(outdir, "versions.yml"))
-    quit(save = "no", status = 0)
-}
-
-switch_list <- readRDS(analyzed_rds)
-features <- switch_list$isoformFeatures
-if (is.null(features) || nrow(features) == 0) {
-    notes <- c(notes, "Status: skipped", "The analyzed switchAnalyzeRlist does not contain isoformFeatures rows.")
-    write.csv(scores, file.path(go_input_dir, "go_gene_scores.csv"), row.names = FALSE)
-    write_empty_enrichment(file.path(outdir, "go_enrichment.csv"))
-    writeLines(notes, file.path(outdir, "go_summary.txt"))
-    write_versions(file.path(outdir, "versions.yml"))
-    quit(save = "no", status = 0)
-}
-
-required_cols <- c("condition_1", "condition_2", "isoform_switch_q_value", "dIF")
-missing_cols <- setdiff(required_cols, colnames(features))
+scores <- read_csv_or_empty(gene_score_file)
+required_cols <- c(
+    "contrast",
+    "condition_1",
+    "condition_2",
+    "gene_id",
+    "gene_name",
+    "min_isoform_switch_q_value",
+    "max_abs_dIF",
+    "n_isoforms_tested"
+)
+missing_cols <- setdiff(required_cols, colnames(scores))
 if (length(missing_cols) > 0) {
-    notes <- c(notes, "Status: skipped", sprintf("isoformFeatures lacks required columns: %s", paste(missing_cols, collapse = ", ")))
+    notes <- c(notes, "Status: skipped", sprintf("Gene score file lacks required columns: %s", paste(missing_cols, collapse = ", ")))
     write.csv(scores, file.path(go_input_dir, "go_gene_scores.csv"), row.names = FALSE)
     write_empty_enrichment(file.path(outdir, "go_enrichment.csv"))
     writeLines(notes, file.path(outdir, "go_summary.txt"))
@@ -227,60 +203,28 @@ if (length(missing_cols) > 0) {
     quit(save = "no", status = 0)
 }
 
-gene_id_col <- choose_column(features, c("gene_id", "geneID", "gene"))
-gene_name_col <- choose_column(features, c("gene_name", "geneSymbol", "gene_symbol", "symbol"))
-isoform_id_col <- choose_column(features, c("isoform_id", "transcript_id", "isoform"))
-
+scores$gene_id <- clean_ids(scores$gene_id)
+scores$gene_name <- clean_ids(scores$gene_name)
 use_symbols <- tolower(gene_id_type) %in% c("genesymbol", "gene_symbol", "symbol")
-gene_ids_initial <- if (is.na(gene_id_col)) rep(NA_character_, nrow(features)) else clean_ids(features[[gene_id_col]])
-gene_names_initial <- if (is.na(gene_name_col)) rep(NA_character_, nrow(features)) else clean_ids(features[[gene_name_col]])
-gene_values <- clean_ids(if (use_symbols) {
-    ifelse(!is.na(gene_names_initial), gene_names_initial, gene_ids_initial)
+scores$gene <- clean_ids(if (use_symbols) {
+    ifelse(!is.na(scores$gene_name), scores$gene_name, scores$gene_id)
 } else {
-    ifelse(!is.na(gene_ids_initial), gene_ids_initial, gene_names_initial)
+    ifelse(!is.na(scores$gene_id), scores$gene_id, scores$gene_name)
 })
+scores$min_isoform_switch_q_value <- safe_num(scores$min_isoform_switch_q_value)
+scores$max_abs_dIF <- safe_num(scores$max_abs_dIF)
+scores$n_isoforms_tested <- as.integer(safe_num(scores$n_isoforms_tested))
+scores$significant_isoform_switch <- scores$min_isoform_switch_q_value <= qvalue_cutoff & scores$max_abs_dIF >= dif_cutoff
+scores <- scores[!is.na(scores$gene) & !is.na(scores$min_isoform_switch_q_value) & !is.na(scores$max_abs_dIF), , drop = FALSE]
+write.csv(scores, file.path(go_input_dir, "go_gene_scores.csv"), row.names = FALSE)
 
-if (all(is.na(gene_values))) {
-    notes <- c(notes, "Status: skipped", "No gene identifiers matching --go_gene_id_type were available in isoformFeatures.")
-    write.csv(scores, file.path(go_input_dir, "go_gene_scores.csv"), row.names = FALSE)
+if (nrow(scores) == 0) {
+    notes <- c(notes, "Status: skipped", "Gene score file contained no usable gene rows for the configured gene identifier type.")
     write_empty_enrichment(file.path(outdir, "go_enrichment.csv"))
     writeLines(notes, file.path(outdir, "go_summary.txt"))
     write_versions(file.path(outdir, "versions.yml"))
     quit(save = "no", status = 0)
 }
-
-contrast_lookup <- make_contrast_lookup(isar_dir, features)
-features <- merge(features, contrast_lookup, by = c("condition_1", "condition_2"), all.x = TRUE)
-features$contrast[is.na(features$contrast)] <- sprintf(
-    "%s_vs_%s",
-    features$condition_2[is.na(features$contrast)],
-    features$condition_1[is.na(features$contrast)]
-)
-
-gene_ids <- if (is.na(gene_id_col)) rep(NA_character_, nrow(features)) else clean_ids(features[[gene_id_col]])
-gene_names <- if (is.na(gene_name_col)) rep(NA_character_, nrow(features)) else clean_ids(features[[gene_name_col]])
-gene_values <- clean_ids(if (use_symbols) {
-    ifelse(!is.na(gene_names), gene_names, gene_ids)
-} else {
-    ifelse(!is.na(gene_ids), gene_ids, gene_names)
-})
-
-rows <- data.frame(
-    contrast = features$contrast,
-    condition_1 = features$condition_1,
-    condition_2 = features$condition_2,
-    isoform_id = if (is.na(isoform_id_col)) seq_len(nrow(features)) else features[[isoform_id_col]],
-    gene = gene_values,
-    gene_id = gene_ids,
-    gene_name = gene_names,
-    qvalue = safe_num(features$isoform_switch_q_value),
-    dIF = safe_num(features$dIF),
-    stringsAsFactors = FALSE
-)
-rows <- rows[!is.na(rows$gene) & !is.na(rows$qvalue) & !is.na(rows$dIF), , drop = FALSE]
-rows$significant <- rows$qvalue <= qvalue_cutoff & abs(rows$dIF) >= dif_cutoff
-scores <- aggregate_gene_scores(rows)
-write.csv(scores, file.path(go_input_dir, "go_gene_scores.csv"), row.names = FALSE)
 
 if (!is.null(reference_gene_file) && nzchar(as.character(reference_gene_file))) {
     global_reference <- sort(unique(clean_ids(readLines(reference_gene_file, warn = FALSE))))

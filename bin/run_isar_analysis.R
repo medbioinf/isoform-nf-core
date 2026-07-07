@@ -131,6 +131,122 @@ write_filtered_gtf <- function(gtf_path, transcript_ids, out_path) {
     write.table(filtered, file = out_path, sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE)
 }
 
+
+safe_num <- function(x) suppressWarnings(as.numeric(x))
+
+clean_ids <- function(ids) {
+    ids <- trimws(as.character(ids))
+    ids[ids %in% c("", "NA", "NaN", "NULL", "null")] <- NA_character_
+    ids
+}
+
+choose_column <- function(data, candidates) {
+    hits <- candidates[candidates %in% colnames(data)]
+    if (length(hits) == 0) NA_character_ else hits[[1]]
+}
+
+first_non_missing <- function(values) {
+    values <- clean_ids(values)
+    values <- values[!is.na(values)]
+    if (length(values) == 0) NA_character_ else values[[1]]
+}
+
+empty_go_gene_scores <- function() {
+    data.frame(
+        contrast = character(),
+        condition_1 = character(),
+        condition_2 = character(),
+        gene = character(),
+        gene_id = character(),
+        gene_name = character(),
+        min_isoform_switch_q_value = numeric(),
+        max_abs_dIF = numeric(),
+        significant_isoform_switch = logical(),
+        n_isoforms_tested = integer(),
+        stringsAsFactors = FALSE
+    )
+}
+
+write_go_gene_scores <- function(switch_list, contrast_labels, out_path, qvalue_cutoff, dif_cutoff) {
+    features <- switch_list$isoformFeatures
+    required_cols <- c("condition_1", "condition_2", "isoform_switch_q_value", "dIF")
+    if (is.null(features) || nrow(features) == 0 || length(setdiff(required_cols, colnames(features))) > 0) {
+        safe_write_csv(empty_go_gene_scores(), out_path)
+        return(invisible(FALSE))
+    }
+
+    if (!is.null(contrast_labels) && all(c("contrast", "condition_1", "condition_2") %in% colnames(contrast_labels))) {
+        contrast_lookup <- unique(contrast_labels[, c("contrast", "condition_1", "condition_2"), drop = FALSE])
+    } else {
+        contrast_lookup <- unique(features[, c("condition_1", "condition_2"), drop = FALSE])
+        contrast_lookup$contrast <- sprintf("%s_vs_%s", contrast_lookup$condition_2, contrast_lookup$condition_1)
+        contrast_lookup <- contrast_lookup[, c("contrast", "condition_1", "condition_2"), drop = FALSE]
+    }
+
+    features <- merge(features, contrast_lookup, by = c("condition_1", "condition_2"), all.x = TRUE)
+    missing_contrast <- is.na(features$contrast)
+    features$contrast[missing_contrast] <- sprintf(
+        "%s_vs_%s",
+        features$condition_2[missing_contrast],
+        features$condition_1[missing_contrast]
+    )
+
+    gene_id_col <- choose_column(features, c("gene_id", "geneID", "gene"))
+    gene_name_col <- choose_column(features, c("gene_name", "geneSymbol", "gene_symbol", "symbol"))
+    isoform_id_col <- choose_column(features, c("isoform_id", "transcript_id", "isoform"))
+
+    gene_ids <- if (is.na(gene_id_col)) rep(NA_character_, nrow(features)) else clean_ids(features[[gene_id_col]])
+    gene_names <- if (is.na(gene_name_col)) rep(NA_character_, nrow(features)) else clean_ids(features[[gene_name_col]])
+    genes <- clean_ids(ifelse(!is.na(gene_names), gene_names, gene_ids))
+
+    rows <- data.frame(
+        contrast = features$contrast,
+        condition_1 = features$condition_1,
+        condition_2 = features$condition_2,
+        isoform_id = if (is.na(isoform_id_col)) seq_len(nrow(features)) else features[[isoform_id_col]],
+        gene = genes,
+        gene_id = gene_ids,
+        gene_name = gene_names,
+        qvalue = safe_num(features$isoform_switch_q_value),
+        dIF = safe_num(features$dIF),
+        stringsAsFactors = FALSE
+    )
+    rows <- rows[!is.na(rows$gene) & !is.na(rows$qvalue) & !is.na(rows$dIF), , drop = FALSE]
+    if (nrow(rows) == 0) {
+        safe_write_csv(empty_go_gene_scores(), out_path)
+        return(invisible(FALSE))
+    }
+    rows$significant <- rows$qvalue <= qvalue_cutoff & abs(rows$dIF) >= dif_cutoff
+
+    keys <- unique(rows[, c("contrast", "condition_1", "condition_2", "gene"), drop = FALSE])
+    scores <- do.call(rbind, lapply(seq_len(nrow(keys)), function(idx) {
+        key <- keys[idx, , drop = FALSE]
+        subset_rows <- rows[
+            rows$contrast == key$contrast &
+                rows$condition_1 == key$condition_1 &
+                rows$condition_2 == key$condition_2 &
+                rows$gene == key$gene,
+            ,
+            drop = FALSE
+        ]
+        data.frame(
+            contrast = key$contrast,
+            condition_1 = key$condition_1,
+            condition_2 = key$condition_2,
+            gene = key$gene,
+            gene_id = first_non_missing(subset_rows$gene_id),
+            gene_name = first_non_missing(subset_rows$gene_name),
+            min_isoform_switch_q_value = min(subset_rows$qvalue, na.rm = TRUE),
+            max_abs_dIF = max(abs(subset_rows$dIF), na.rm = TRUE),
+            significant_isoform_switch = any(subset_rows$significant, na.rm = TRUE),
+            n_isoforms_tested = length(unique(subset_rows$isoform_id)),
+            stringsAsFactors = FALSE
+        )
+    }))
+    safe_write_csv(scores, out_path)
+    invisible(TRUE)
+}
+
 opts <- parse_args(args)
 required <- c("samplesheet", "quant-dir", "gtf", "transcript-fasta", "outdir")
 missing <- required[!required %in% names(opts) | !nzchar(unlist(opts[required]))]
@@ -160,6 +276,7 @@ if (nrow(design) == 0) {
 }
 
 dir.create(opts$outdir, recursive = TRUE, showWarnings = FALSE)
+safe_write_csv(empty_go_gene_scores(), file.path(opts$outdir, "go_gene_scores.csv"))
 safe_write_csv(design, file.path(opts$outdir, "design_matrix.csv"))
 safe_write_csv(
     data.frame(sample = design$sampleID, quant_dir = file.path(quant_parent, design$sampleID), stringsAsFactors = FALSE),
@@ -268,6 +385,13 @@ if (can_run_test) {
         )
         safe_write_csv(extractSwitchSummary(analyzed), file.path(opts$outdir, "switch_summary.csv"))
         safe_write_csv(extractTopSwitches(analyzed, n = as.integer(opts$top_n)), file.path(opts$outdir, "top_switches.csv"))
+        write_go_gene_scores(
+            analyzed,
+            contrast_labels,
+            file.path(opts$outdir, "go_gene_scores.csv"),
+            as.numeric(opts$qvalue_cutoff),
+            as.numeric(opts$dif_cutoff)
+        )
         saveRDS(analyzed, file.path(opts$outdir, "switchAnalyzeRlist_analyzed.rds"))
         list(success = TRUE)
     }, error = function(err) {
