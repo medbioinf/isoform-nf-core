@@ -42,15 +42,15 @@ TREATMENT_REP3,treatment,3,AEG588A6_S6_L003_R1_001.fastq.gz,,auto,batch1
 TREATMENT_REP3,treatment,3,AEG588A6_S6_L004_R1_001.fastq.gz,,auto,batch1
 ```
 
-| Column    | Description                                                                                                                                                                            |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sample`  | Custom sample name. This entry will be identical for multiple sequencing libraries/runs from the same sample. Spaces in sample names are automatically converted to underscores (`_`). |
-| `condition` | Biological or experimental condition for this sample, for example `control` or `treatment`. |
-| `replicate` | Positive integer replicate number within the condition. |
-| `fastq_1` | Full path to FastQ file for Illumina short reads 1. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz".                                                             |
-| `fastq_2` | Full path to FastQ file for Illumina short reads 2. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz".                                                             |
-| `strandedness` | Library strandedness. Must be one of `auto`, `forward`, `reverse`, or `unstranded`. |
-| `batch` | Optional batch label for downstream analyses. |
+| Column         | Description                                                                                                                                                                            |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sample`       | Custom sample name. This entry will be identical for multiple sequencing libraries/runs from the same sample. Spaces in sample names are automatically converted to underscores (`_`). |
+| `condition`    | Biological or experimental condition for this sample, for example `control` or `treatment`.                                                                                            |
+| `replicate`    | Positive integer replicate number within the condition.                                                                                                                                |
+| `fastq_1`      | Full path to FastQ file for Illumina short reads 1. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz".                                                             |
+| `fastq_2`      | Full path to FastQ file for Illumina short reads 2. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz".                                                             |
+| `strandedness` | Library strandedness. Must be one of `auto`, `forward`, `reverse`, or `unstranded`.                                                                                                    |
+| `batch`        | Optional batch label for downstream analyses.                                                                                                                                          |
 
 An [example samplesheet](../assets/samplesheet.csv) has been provided with the pipeline.
 

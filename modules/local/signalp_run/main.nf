@@ -48,7 +48,7 @@ process SIGNALP_RUN {
     cat > signalp/signalp5_summary.signalp5 <<'EOF'
 # SignalP-5.0	Organism: Eukarya	Timestamp: stub
 # ID	Prediction	SP(Sec/SPI)	OTHER	CS Position
-stub_isoform	OTHER	0.0000	1.0000	
+stub_isoform	OTHER	0.0000	1.0000
 EOF
     echo "stub signalp" > signalp/signalp.log
     """

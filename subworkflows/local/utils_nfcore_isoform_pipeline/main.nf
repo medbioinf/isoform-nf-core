@@ -221,11 +221,48 @@ def sampleRowToInput(meta, fastq_1, fastq_2) {
         error("Please check input samplesheet -> Sample name must be provided")
     }
 
-    if (!fastq_2) {
-        return [ meta.id, meta + [ single_end:true ], [ fastq_1 ] ]
+    def resolved_fastq_1 = resolveInputFastq(fastq_1)
+    def resolved_fastq_2 = resolveInputFastq(fastq_2)
+
+    if (!resolved_fastq_2) {
+        return [ meta.id, meta + [ single_end:true ], [ resolved_fastq_1 ] ]
     } else {
-        return [ meta.id, meta + [ single_end:false ], [ fastq_1, fastq_2 ] ]
+        return [ meta.id, meta + [ single_end:false ], [ resolved_fastq_1, resolved_fastq_2 ] ]
     }
+}
+
+def resolveInputFastq(path_value) {
+    if (!path_value || (path_value instanceof List && path_value.isEmpty())) {
+        return null
+    }
+
+    def value = path_value.toString()
+    if (!value || value == '[]') {
+        return null
+    }
+
+    def relative_value = value
+    def launch_dir = workflow.launchDir?.toString()
+    if (launch_dir && value.startsWith("${launch_dir}/")) {
+        relative_value = value.substring(launch_dir.size() + 1)
+    }
+
+    def candidates = [value]
+    if (!new File(relative_value).isAbsolute()) {
+        candidates << "${projectDir}/${relative_value}"
+        if (params.input) {
+            candidates << "${file(params.input).parent}/${relative_value}"
+        }
+    }
+
+    for (candidate in candidates.unique()) {
+        def candidate_path = file(candidate)
+        if (candidate_path.exists()) {
+            return candidate_path
+        }
+    }
+
+    error("Please check input samplesheet -> FASTQ file does not exist: ${relative_value}")
 }
 
 def validateInputSamplesheet(input) {
