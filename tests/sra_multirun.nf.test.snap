@@ -31,7 +31,7 @@
                     "salmon": "1.10.3"
                 },
                 "Workflow": {
-                    "Anton-Bch/isoform-nf-core": "v1.0.0-beta.1"
+                    "Anton-Bch/isoform-nf-core": "v1.0.0-beta.2"
                 }
             }
         ],

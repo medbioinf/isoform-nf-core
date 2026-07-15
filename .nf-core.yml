@@ -50,7 +50,7 @@ template:
   name: isoform-nf-core
   description: General-purpose Nextflow pipeline for isoform switch analysis
   author: Anton Buch and Tobias Polley
-  version: 1.0.0-beta.1
+  version: 1.0.0-beta.2
   force: true
   outdir: /home/anton/uni/isoform-nf-core
   is_nfcore: false
