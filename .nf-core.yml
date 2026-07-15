@@ -4,6 +4,7 @@ nf_core_version: 3.5.2
 
 lint:
   files_unchanged:
+    - .gitignore
     - CODE_OF_CONDUCT.md
     - assets/nf-core-isoform_logo_light.png
     - assets/nf-core-isoform-nf-core_logo_light.png
@@ -16,6 +17,8 @@ lint:
     - .github/CONTRIBUTING.md
     - .github/PULL_REQUEST_TEMPLATE.md
     - .github/workflows/branch.yml
+    - .github/workflows/linting.yml
+    - .github/workflows/linting_comment.yml
     - assets/email_template.txt
     - assets/sendmail_template.txt
     - docs/README.md
@@ -26,6 +29,10 @@ lint:
   # image does not ship a supported renderer. The interactive HTML report is
   # still produced and validated end to end.
   multiqc_config: false
+  # nf-core/tools 3.5.2 only accepts numeric versions in release mode and
+  # rejects valid SemVer prerelease identifiers such as 1.0.0-beta.2.
+  # Version equality is validated explicitly by the release preparation.
+  version_consistency: false
   files_exist:
     - CODE_OF_CONDUCT.md
     - assets/nf-core-isoform_logo_light.png

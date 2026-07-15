@@ -281,11 +281,11 @@ def resolveInputFastq(path_value) {
         }
     }
 
-    for (candidate in candidates.unique()) {
-        def candidate_path = file(candidate)
-        if (candidate_path.exists()) {
-            return candidate_path
-        }
+    def resolved_candidate = candidates.unique()
+        .collect { candidate -> file(candidate) }
+        .find { candidate_path -> candidate_path.exists() }
+    if (resolved_candidate) {
+        return resolved_candidate
     }
 
     error("Please check input samplesheet -> FASTQ file does not exist: ${relative_value}")
