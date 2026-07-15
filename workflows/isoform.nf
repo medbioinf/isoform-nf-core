@@ -59,10 +59,33 @@ workflow ISOFORM {
     FETCH_SRA_FASTQ (
         ch_sra_manifest
     )
-    ch_sra_reads = FETCH_SRA_FASTQ.out.reads.map { meta, reads ->
-        def ordered_reads = (reads instanceof List ? reads : [reads]).sort { it.name }
-        [ meta + [ single_end: ordered_reads.size() == 1 ], ordered_reads ]
-    }
+    ch_sra_reads = FETCH_SRA_FASTQ.out.reads
+        .map { meta, reads ->
+            def ordered_reads = (reads instanceof List ? reads : [reads]).sort { it.name }
+            if (!(ordered_reads.size() in [1, 2])) {
+                error("SRA run ${meta.sra_run} for sample ${meta.id} produced ${ordered_reads.size()} FASTQ files; expected one single-end file or one paired-end file pair")
+            }
+            [ meta.id, [ meta, ordered_reads ] ]
+        }
+        .groupTuple()
+        .map { sample_id, run_records ->
+            def sorted_runs = run_records.sort { left, right ->
+                left[0].sra_run.toString() <=> right[0].sra_run.toString()
+            }
+            def read_counts = sorted_runs.collect { run_record -> run_record[1].size() }.unique()
+            if (read_counts.size() != 1) {
+                error("SRA runs for sample ${sample_id} mix single-end and paired-end data; all runs for a biological sample must have the same endedness")
+            }
+
+            def sample_meta = new LinkedHashMap(sorted_runs[0][0])
+            sample_meta.remove('sra_run')
+            sample_meta.single_end = read_counts[0] == 1
+
+            // CAT_FASTQ separates paired reads by alternating list position, so retain
+            // [run1_R1, run1_R2, run2_R1, run2_R2, ...] ordering after sorting runs.
+            def sample_reads = sorted_runs.collectMany { run_record -> run_record[1] }
+            [ sample_meta, sample_reads ]
+        }
     ch_samplesheet = ch_fastq_samplesheet.mix(ch_sra_reads)
 
     //

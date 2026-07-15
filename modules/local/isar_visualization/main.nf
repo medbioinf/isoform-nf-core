@@ -25,6 +25,8 @@ process ISAR_VISUALIZATION {
         --isar-dir ${isar_results} \\
         --outdir isar_visualization \\
         --top-n ${params.isar_visualization_top_n} \\
+        --qvalue-cutoff ${params.isar_qvalue_cutoff} \\
+        --dif-cutoff ${params.isar_dif_cutoff} \\
         ${args}
     """
 

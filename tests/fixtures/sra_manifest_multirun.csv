@@ -1,0 +1,9 @@
+sample,condition,replicate,run_accession,strandedness,batch
+CONTROL_REP1,control,1,SRR000001,auto,batch1
+CONTROL_REP1,control,1,SRR000002,auto,batch1
+CONTROL_REP2,control,2,SRR000003,auto,batch1
+CONTROL_REP2,control,2,SRR000004,auto,batch1
+TREATED_REP1,treated,1,SRR000005,auto,batch1
+TREATED_REP1,treated,1,SRR000006,auto,batch1
+TREATED_REP2,treated,2,SRR000007,auto,batch1
+TREATED_REP2,treated,2,SRR000008,auto,batch1

@@ -8,7 +8,7 @@ args <- commandArgs(trailingOnly = TRUE)
 usage <- paste(
     "Usage:",
     "Rscript run_annotated_switch_plots.R",
-    "<switchAnalyzeRlist_rds_or_dir> <outdir> [n_top] [genes_csv] [condition1] [condition2] [plot_topology]",
+    "<switchAnalyzeRlist_rds_or_dir> <outdir> [n_top] [genes_csv] [condition1] [condition2] [plot_topology] [qvalue_cutoff] [dif_cutoff]",
     "",
     "genes_csv is optional and can be a comma-separated list such as ZNRF3,PBX3.",
     "If genes_csv is '-', the script selects the top n_top genes by gene_switch_q_value.",
@@ -16,7 +16,7 @@ usage <- paste(
     sep = "\n"
 )
 
-if (length(args) < 2 || length(args) > 7) {
+if (length(args) < 2 || length(args) > 9) {
     stop(usage, call. = FALSE)
 }
 
@@ -57,9 +57,17 @@ plot_topology <- if (length(args) >= 7) {
 } else {
     TRUE
 }
+qvalue_cutoff <- if (length(args) >= 8) as.numeric(args[[8]]) else 0.05
+dif_cutoff <- if (length(args) >= 9) as.numeric(args[[9]]) else 0.1
 
 if (is.na(n_top) || n_top < 1) {
     stop("n_top must be a positive integer.", call. = FALSE)
+}
+if (is.na(qvalue_cutoff) || qvalue_cutoff <= 0 || qvalue_cutoff >= 1) {
+    stop("qvalue_cutoff must be between 0 and 1.", call. = FALSE)
+}
+if (is.na(dif_cutoff) || dif_cutoff < 0 || dif_cutoff > 1) {
+    stop("dif_cutoff must be between 0 and 1 inclusive.", call. = FALSE)
 }
 
 dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
@@ -174,8 +182,8 @@ for (i in seq_along(genes_to_plot)) {
             condition1 = condition1,
             condition2 = condition2,
             IFcutoff = 0.05,
-            dIFcutoff = 0.1,
-            alphas = c(0.05, 0.001),
+            dIFcutoff = dif_cutoff,
+            alphas = c(qvalue_cutoff, min(qvalue_cutoff, 0.001)),
             plotTopology = use_topology,
             localTheme = ggplot2::theme_bw(base_size = 12)
         )
@@ -259,6 +267,8 @@ notes <- c(
     sprintf("Input RDS: %s", rds_path),
     sprintf("Output directory: %s", normalizePath(outdir, mustWork = FALSE)),
     sprintf("Comparison: %s vs %s", condition1, condition2),
+    sprintf("Switch q-value cutoff: %s", format(qvalue_cutoff)),
+    sprintf("Switch dIF cutoff: %s", format(dif_cutoff)),
     sprintf("Topology plotting requested: %s", plot_topology),
     sprintf("Genes requested/plotted: %s", paste(genes_to_plot, collapse = ", ")),
     "",

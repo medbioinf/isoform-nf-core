@@ -21,11 +21,38 @@ nextflow_pipeline {
                 { assert new File("$outputDir/fastp/CONTROL_REP1.fastp.json").exists() },
                 { assert new File("$outputDir/salmon/salmon/versionInfo.json").exists() },
                 { assert new File("$outputDir/salmon/CONTROL_REP1/quant.sf").exists() },
+                { assert new File("$outputDir/salmon/CONTROL_REP1_lib_format_counts.json").text.contains('"expected_format": "U"') },
+                { assert new File("$outputDir/salmon/CONTROL_REP1_requested_lib_type.txt").text.trim() == 'A' },
                 { assert new File("$outputDir/isar/isar_analysis/switch_summary.csv").exists() },
+                { assert new File("$outputDir/isar/isar_analysis/design_matrix.csv").readLines().first().contains('batch') },
+                { assert new File("$outputDir/isar/isar_analysis/go_gene_scores.csv").text.contains('GENE1') },
                 { assert new File("$outputDir/isar/isar_contrast_summary/significant_isoform_switches_per_comparison.csv").exists() },
                 { assert new File("$outputDir/isar/isar_visualization/top_isoform_candidates.csv").exists() },
                 { assert new File("$outputDir/multiqc/multiqc_report.html").exists() },
                 { assert new File("$outputDir/pipeline_info/isoform_software_mqc_versions.yml").exists() }
+            )
+        }
+    }
+
+    test("-profile test paired-end with Salmon auto inference") {
+
+        when {
+            params {
+                input = "${projectDir}/tests/fixtures/samplesheet_paired.csv"
+                outdir = "$outputDir"
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert new File("$outputDir/fastp/CONTROL_REP1_R1.fastp.fastq.gz").exists() },
+                { assert new File("$outputDir/fastp/CONTROL_REP1_R2.fastp.fastq.gz").exists() },
+                { assert new File("$outputDir/salmon/CONTROL_REP1_lib_format_counts.json").text.contains('"expected_format": "IU"') },
+                { assert new File("$outputDir/salmon/CONTROL_REP1_requested_lib_type.txt").text.trim() == 'A' },
+                { assert new File("$outputDir/isar/isar_analysis/design_matrix.csv").readLines().first().contains('batch') },
+                { assert new File("$outputDir/isar/isar_analysis/go_gene_scores.csv").text.contains('GENE1') },
+                { assert new File("$outputDir/multiqc/multiqc_report.html").exists() }
             )
         }
     }

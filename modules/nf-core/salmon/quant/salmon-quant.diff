@@ -1,0 +1,68 @@
+Changes in component 'nf-core/salmon/quant'
+'modules/nf-core/salmon/quant/environment.yml' is unchanged
+Changes in 'salmon/quant/meta.yml':
+--- modules/nf-core/salmon/quant/meta.yml
++++ modules/nf-core/salmon/quant/meta.yml
+@@ -77,6 +77,14 @@
+           pattern: "*lib_format_counts.json"
+           ontologies:
+             - edam: http://edamontology.org/format_3464 # JSON
++  requested_lib_type:
++    - - meta:
++          type: map
++          description: Groovy Map containing sample information
++      - "*_requested_lib_type.txt":
++          type: file
++          description: Salmon library type requested by the pipeline before automatic inference
++          pattern: "*_requested_lib_type.txt"
+   versions_salmon:
+     - - ${task.process}:
+           type: string
+
+Changes in 'salmon/quant/main.nf':
+--- modules/nf-core/salmon/quant/main.nf
++++ modules/nf-core/salmon/quant/main.nf
+@@ -19,4 +19,5 @@
+     tuple val(meta), path("${prefix}"), emit: results
+     tuple val(meta), path("*info.json"), emit: json_info, optional: true
+     tuple val(meta), path("*lib_format_counts.json"), emit: lib_format_counts, optional: true
++    tuple val(meta), path("*_requested_lib_type.txt"), emit: requested_lib_type
+     tuple val("${task.process}"), val('salmon'), eval('salmon --version | sed -e "s/salmon //g"'), topic: versions, emit: versions_salmon
+@@ -66,12 +67,17 @@
+         }
+     }
+     else {
+-        strandedness = meta.single_end ? 'U' : 'IU'
+-        if (meta.strandedness == 'forward') {
++        if (meta.strandedness == 'unstranded') {
++            strandedness = meta.single_end ? 'U' : 'IU'
++        }
++        else if (meta.strandedness == 'forward') {
+             strandedness = meta.single_end ? 'SF' : 'ISF'
+         }
+         else if (meta.strandedness == 'reverse') {
+             strandedness = meta.single_end ? 'SR' : 'ISR'
++        }
++        else if (meta.strandedness != 'auto') {
++            log.info("[Salmon Quant] Unknown samplesheet strandedness '${meta.strandedness}', defaulting to auto-detection with '--libType=A'.")
+         }
+     }
+     """
+@@ -90,4 +96,5 @@
+     if [ -f ${prefix}/lib_format_counts.json ]; then
+         cp ${prefix}/lib_format_counts.json "${prefix}_lib_format_counts.json"
+     fi
++    printf '%s\n' '${strandedness}' > "${prefix}_requested_lib_type.txt"
+     """
+@@ -98,5 +105,6 @@
+     mkdir ${prefix}
+     touch ${prefix}_meta_info.json
+     touch ${prefix}_lib_format_counts.json
++    touch ${prefix}_requested_lib_type.txt
+     """
+ }
+
+'modules/nf-core/salmon/quant/tests/main.nf.test.snap' is unchanged
+'modules/nf-core/salmon/quant/tests/nextflow.config' is unchanged
+'modules/nf-core/salmon/quant/tests/main.nf.test' is unchanged
+************************************************************

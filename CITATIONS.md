@@ -14,9 +14,29 @@
 
 > Andrews, S. (2010). FastQC: A Quality Control Tool for High Throughput Sequence Data [Online].
 
+- [fastp](https://doi.org/10.1093/bioinformatics/bty560)
+
+> Chen S, Zhou Y, Chen Y, Gu J. fastp: an ultra-fast all-in-one FASTQ preprocessor. Bioinformatics. 2018;34(17):i884-i890. doi: 10.1093/bioinformatics/bty560.
+
+- [Salmon](https://doi.org/10.1038/nmeth.4197)
+
+> Patro R, Duggal G, Love MI, Irizarry RA, Kingsford C. Salmon provides fast and bias-aware quantification of transcript expression. Nat Methods. 2017;14:417-419. doi: 10.1038/nmeth.4197.
+
+- [IsoformSwitchAnalyzeR](https://doi.org/10.1158/1541-7786.MCR-18-0262)
+
+> Vitting-Seerup K, Sandelin A. IsoformSwitchAnalyzeR: analysis of changes in genome-wide patterns of alternative isoform usage and its functional consequences. Mol Cancer Res. 2019;17(4):846-859. doi: 10.1158/1541-7786.MCR-18-0262.
+
 - [MultiQC](https://pubmed.ncbi.nlm.nih.gov/27312411/)
 
 > Ewels P, Magnusson M, Lundin S, Käller M. MultiQC: summarize analysis results for multiple tools and samples in a single report. Bioinformatics. 2016 Oct 1;32(19):3047-8. doi: 10.1093/bioinformatics/btw354. Epub 2016 Jun 16. PubMed PMID: 27312411; PubMed Central PMCID: PMC5039924.
+
+- [WebGestalt](https://doi.org/10.1093/nar/gkz401)
+
+> Liao Y, Wang J, Jaehnig EJ, Shi Z, Zhang B. WebGestalt 2019: gene set analysis toolkit with revamped UIs and APIs. Nucleic Acids Res. 2019;47(W1):W199-W205. doi: 10.1093/nar/gkz401.
+
+- [Pfam](https://doi.org/10.1093/nar/gkaa913)
+
+> Mistry J, Chuguransky S, Williams L, et al. Pfam: The protein families database in 2021. Nucleic Acids Res. 2021;49(D1):D412-D419. doi: 10.1093/nar/gkaa913.
 
 - [IUPred2A](https://pubmed.ncbi.nlm.nih.gov/29860432/)
 

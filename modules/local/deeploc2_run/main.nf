@@ -3,7 +3,7 @@ process DEEPLOC2_RUN {
     label 'process_high'
 
     conda "${moduleDir}/environment.yml"
-    container 'docker.io/hannharris/deeploc2.1:latest'
+    container 'docker.io/hannharris/deeploc2.1@sha256:4ed94de91083c332cc7405b99f2de5c0a94381cd8bce9e2fe81f7d5b32f97759'
     containerOptions '--entrypoint='
 
     input:
@@ -14,7 +14,7 @@ process DEEPLOC2_RUN {
     path "deeploc2/deeploc2_isar.csv", emit: results
     path "deeploc2/results_*.csv", emit: raw
     path "deeploc2/deeploc2.log", emit: log
-    tuple val("${task.process}"), val('deeploc2'), val('2.1'), emit: versions_deeploc2, topic: versions
+    tuple val("${task.process}"), val('deeploc2'), val('2.1@sha256:4ed94de91083'), emit: versions_deeploc2, topic: versions
 
     when:
     task.ext.when == null || task.ext.when

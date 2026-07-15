@@ -274,7 +274,7 @@ It does not require a separate biological reference database. The pipeline extra
 
 The main practical prerequisite is container availability. The current implementation uses the `btrspg/signalp:5.0b` container image. SignalP has historically had more restrictive distribution/licensing expectations than fully open bioinformatics tools, so the container and license situation should be checked for the target environment before relying on it in a public release.
 
-Current implementation note: this third-party image is minimal and does not include `ps`, which Nextflow uses for runtime metrics. Runs with `--run_signalp` currently disable Nextflow trace/timeline/report generation to avoid failing inside this container. Other pipeline information outputs, such as parameters and DAG files, can still be emitted. Before a polished public release, this should ideally be replaced by a pinned container image that already contains the runtime and Nextflow metric dependencies.
+Current implementation note: this third-party image is minimal and does not include `ps`, so some per-process runtime metrics may be unavailable. The pipeline still emits its trace, timeline, report, parameters, and DAG files so execution provenance is retained. Before a polished public release, this should ideally be replaced by a pinned container image that contains the standard runtime metric dependencies.
 
 SignalP predicts signal peptides. A signal peptide is a short protein segment that can route a protein into the secretory pathway or toward membrane-associated processing.
 
@@ -288,7 +288,7 @@ DeepTMHMM annotation is optional and enabled with:
 
 It does not require a separate biological reference database. The pipeline extracts protein sequences from the ISAR object, runs DeepTMHMM in a container, converts the three-line topology output, and imports the converted regions into IsoformSwitchAnalyzeR.
 
-The main practical prerequisite is container availability. The current implementation uses the `docker.io/deeptmhmm/deeptmhmm:latest` container image.
+The main practical prerequisite is container availability. The image is pinned to immutable digest `sha256:e527883fd2114007c6208c3d764fece40016cc95e209eab93016644c3e7ccb16` so repeated runs use the same DeepTMHMM environment.
 
 DeepTMHMM is computationally heavier than lightweight plotting. Its runtime scales with the number of extracted protein sequences and can dominate optional annotation runtime in real datasets. Treat it as an interpretation module for selected real analyses, not as a default quick smoke-test step.
 
@@ -302,7 +302,7 @@ DeepLoc2 annotation is optional and enabled with:
 
 It does not require a separate biological reference database. The pipeline extracts protein sequences from the ISAR object, runs DeepLoc2 in a container, converts the prediction table, and imports localization labels into IsoformSwitchAnalyzeR.
 
-The main practical prerequisite is container availability. The current implementation uses the `docker.io/hannharris/deeploc2.1:latest` container image.
+The main practical prerequisite is container availability. The DeepLoc 2.1 image is pinned to immutable digest `sha256:4ed94de91083c332cc7405b99f2de5c0a94381cd8bce9e2fe81f7d5b32f97759`.
 
 DeepLoc2 may download model assets on first use, depending on the container cache state. Make sure the run environment has either network access for the first run or pre-cached model/container assets.
 

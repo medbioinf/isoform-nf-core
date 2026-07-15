@@ -32,7 +32,8 @@ parse_args <- function(args) {
         if (!startsWith(key, "--") || i == length(args)) {
             stop(usage(), call. = FALSE)
         }
-        opts[[sub("^--", "", key)]] <- args[[i + 1]]
+        option_name <- gsub("-", "_", sub("^--", "", key), fixed = TRUE)
+        opts[[option_name]] <- args[[i + 1]]
         i <- i + 2
     }
     opts
@@ -151,6 +152,148 @@ first_non_missing <- function(values) {
     if (length(values) == 0) NA_character_ else values[[1]]
 }
 
+normalize_metadata_value <- function(values) {
+    if (is.factor(values)) {
+        values <- as.character(values)
+    }
+    if (is.character(values)) {
+        values <- trimws(values)
+        values[values %in% c("", "NA", "NaN", "NULL", "null")] <- NA_character_
+    }
+    values
+}
+
+build_design_matrix <- function(samplesheet) {
+    sample_ids <- unique(as.character(samplesheet$sample))
+    design <- data.frame(sampleID = sample_ids, stringsAsFactors = FALSE)
+    design_notes <- character(0)
+
+    collapse_column <- function(column_name) {
+        source_values <- normalize_metadata_value(samplesheet[[column_name]])
+        collapsed <- lapply(sample_ids, function(sample_id) {
+            values <- source_values[as.character(samplesheet$sample) == sample_id]
+            values <- unique(values[!is.na(values)])
+            if (length(values) > 1) {
+                stop(
+                    sprintf(
+                        "Sample '%s' has conflicting values for design column '%s': %s",
+                        sample_id,
+                        column_name,
+                        paste(values, collapse = ", ")
+                    ),
+                    call. = FALSE
+                )
+            }
+            if (length(values) == 0) NA else values[[1]]
+        })
+        if (is.numeric(source_values) || is.integer(source_values)) {
+            return(as.numeric(unlist(collapsed)))
+        }
+        as.character(unlist(collapsed))
+    }
+
+    design$condition <- collapse_column("condition")
+    if (any(is.na(design$condition))) {
+        stop("Every sample must have a non-empty condition.", call. = FALSE)
+    }
+
+    technical_columns <- c(
+        "sample", "condition", "replicate", "fastq_1", "fastq_2",
+        "strandedness", "run_accession", "sra_run"
+    )
+    candidate_covariates <- setdiff(colnames(samplesheet), technical_columns)
+    if ("batch" %in% candidate_covariates) {
+        candidate_covariates <- c("batch", setdiff(candidate_covariates, "batch"))
+    }
+
+    included_covariates <- character(0)
+    for (column_name in candidate_covariates) {
+        values <- collapse_column(column_name)
+        present <- !is.na(values)
+        if (!any(present)) {
+            design_notes <- c(design_notes, sprintf("Design covariate '%s': omitted because it is empty.", column_name))
+            next
+        }
+        if (!all(present)) {
+            stop(
+                sprintf(
+                    "Design covariate '%s' is missing for samples: %s. Covariates must be complete or entirely empty.",
+                    column_name,
+                    paste(design$sampleID[!present], collapse = ", ")
+                ),
+                call. = FALSE
+            )
+        }
+        if (length(unique(values)) == 1) {
+            design_notes <- c(
+                design_notes,
+                sprintf("Design covariate '%s': omitted because it is constant across all samples.", column_name)
+            )
+            next
+        }
+        if ((is.character(values) || is.factor(values)) && length(unique(values)) == length(values)) {
+            stop(
+                sprintf(
+                    "Design covariate '%s' has a unique categorical value for every sample and would model sample identity rather than a shared effect.",
+                    column_name
+                ),
+                call. = FALSE
+            )
+        }
+
+        safe_column_name <- make.names(column_name)
+        if (safe_column_name %in% colnames(design) || safe_column_name %in% included_covariates) {
+            stop(sprintf("Design covariate name '%s' is not unique after R name normalization.", column_name), call. = FALSE)
+        }
+        design[[safe_column_name]] <- values
+        included_covariates <- c(included_covariates, safe_column_name)
+        if (!identical(safe_column_name, column_name)) {
+            design_notes <- c(
+                design_notes,
+                sprintf("Design covariate '%s' was normalized to '%s' for R modeling.", column_name, safe_column_name)
+            )
+        }
+    }
+
+    if (length(included_covariates) > 0) {
+        model_design <- design
+        model_design$condition <- factor(model_design$condition, levels = unique(model_design$condition))
+        for (column_name in included_covariates) {
+            values <- model_design[[column_name]]
+            if (is.numeric(values) || is.integer(values)) {
+                if (length(unique(values)) * 2 <= length(values)) {
+                    model_design[[column_name]] <- factor(values)
+                }
+            } else {
+                model_design[[column_name]] <- factor(values)
+            }
+        }
+        formula <- stats::reformulate(c("condition", included_covariates), response = NULL, intercept = FALSE)
+        model_matrix <- stats::model.matrix(formula, data = model_design)
+        if (qr(model_matrix)$rank < ncol(model_matrix)) {
+            stop(
+                sprintf(
+                    paste0(
+                        "The design matrix is not full rank after adding covariates: %s. ",
+                        "A covariate is likely confounded with condition or another covariate; ",
+                        "the effects cannot be estimated independently."
+                    ),
+                    paste(included_covariates, collapse = ", ")
+                ),
+                call. = FALSE
+            )
+        }
+        design_notes <- c(
+            design_notes,
+            sprintf("Design covariates modeled: %s", paste(included_covariates, collapse = ", "))
+        )
+    } else {
+        design_notes <- c(design_notes, "Design covariates modeled: none")
+    }
+
+    list(design = design, notes = design_notes)
+}
+
 empty_go_gene_scores <- function() {
     data.frame(
         contrast = character(),
@@ -163,6 +306,8 @@ empty_go_gene_scores <- function() {
         max_abs_dIF = numeric(),
         significant_isoform_switch = logical(),
         n_isoforms_tested = integer(),
+        qvalue_cutoff = numeric(),
+        dif_cutoff = numeric(),
         stringsAsFactors = FALSE
     )
 }
@@ -240,6 +385,8 @@ write_go_gene_scores <- function(switch_list, contrast_labels, out_path, qvalue_
             max_abs_dIF = max(abs(subset_rows$dIF), na.rm = TRUE),
             significant_isoform_switch = any(subset_rows$significant, na.rm = TRUE),
             n_isoforms_tested = length(unique(subset_rows$isoform_id)),
+            qvalue_cutoff = qvalue_cutoff,
+            dif_cutoff = dif_cutoff,
             stringsAsFactors = FALSE
         )
     }))
@@ -248,11 +395,25 @@ write_go_gene_scores <- function(switch_list, contrast_labels, out_path, qvalue_
 }
 
 opts <- parse_args(args)
-required <- c("samplesheet", "quant-dir", "gtf", "transcript-fasta", "outdir")
+required <- c("samplesheet", "quant_dir", "gtf", "transcript_fasta", "outdir")
 missing <- required[!required %in% names(opts) | !nzchar(unlist(opts[required]))]
 if (length(missing) > 0) {
     stop(sprintf("Missing required arguments: %s\n%s", paste(missing, collapse = ", "), usage()), call. = FALSE)
 }
+
+qvalue_cutoff <- suppressWarnings(as.numeric(opts$qvalue_cutoff))
+dif_cutoff <- suppressWarnings(as.numeric(opts$dif_cutoff))
+top_n_numeric <- suppressWarnings(as.numeric(opts$top_n))
+if (is.na(qvalue_cutoff) || qvalue_cutoff <= 0 || qvalue_cutoff >= 1) {
+    stop("--qvalue-cutoff must be strictly between 0 and 1.", call. = FALSE)
+}
+if (is.na(dif_cutoff) || dif_cutoff < 0 || dif_cutoff > 1) {
+    stop("--dif-cutoff must be between 0 and 1 inclusive.", call. = FALSE)
+}
+if (is.na(top_n_numeric) || top_n_numeric < 1 || top_n_numeric != floor(top_n_numeric)) {
+    stop("--top-n must be a positive integer.", call. = FALSE)
+}
+top_n <- as.integer(top_n_numeric)
 
 samplesheet <- read.csv(opts$samplesheet, stringsAsFactors = FALSE, check.names = FALSE)
 required_cols <- c("sample", "condition")
@@ -261,13 +422,11 @@ if (length(missing_cols) > 0) {
     stop(sprintf("Samplesheet is missing required columns: %s", paste(missing_cols, collapse = ", ")), call. = FALSE)
 }
 
-design <- unique(samplesheet[, required_cols, drop = FALSE])
-colnames(design) <- c("sampleID", "condition")
-if (any(duplicated(design$sampleID))) {
-    stop("Each sample must map to exactly one condition for the first ISAR implementation.", call. = FALSE)
-}
+design_result <- build_design_matrix(samplesheet)
+design <- design_result$design
+design_notes <- design_result$notes
 
-quant_parent <- normalizePath(opts[["quant-dir"]], mustWork = TRUE)
+quant_parent <- normalizePath(opts$quant_dir, mustWork = TRUE)
 quant_files <- Sys.glob(file.path(quant_parent, "*", "quant.sf"))
 available_dirs <- basename(dirname(quant_files))
 design <- design[design$sampleID %in% available_dirs, , drop = FALSE]
@@ -334,18 +493,44 @@ if (!is.null(contrast_labels)) {
     safe_write_csv(contrast_labels, file.path(opts$outdir, "comparisons.csv"))
 }
 
+explicit_covariates <- setdiff(colnames(design), c("sampleID", "condition"))
+has_explicit_covariates <- length(explicit_covariates) > 0
+import_design <- design[, c("sampleID", "condition"), drop = FALSE]
+if (has_explicit_covariates) {
+    design_notes <- c(
+        design_notes,
+        paste0(
+            "Explicit covariates are applied in the DEXSeq isoform-usage model. ",
+            "IsoformSwitchAnalyzeR automatic surrogate-variable discovery and abundance batch correction were disabled during import."
+        )
+    )
+}
+
 message("Creating switchAnalyzeRlist")
 switch_list <- importRdata(
     isoformCountMatrix = salmon_quant$counts,
     isoformRepExpression = salmon_quant$abundance,
-    designMatrix = design,
+    designMatrix = import_design,
     isoformExonAnnoation = filtered_gtf,
-    isoformNtFasta = opts[["transcript-fasta"]],
+    isoformNtFasta = opts$transcript_fasta,
     comparisonsToMake = comparisons,
+    detectUnwantedEffects = !has_explicit_covariates,
     ignoreAfterBar = TRUE,
     quiet = TRUE,
     showProgress = FALSE
 )
+
+if (has_explicit_covariates) {
+    imported_design <- switch_list$designMatrix
+    modeled_design <- design
+    modeled_design$condition <- imported_design$condition[
+        match(modeled_design$sampleID, imported_design$sampleID)
+    ]
+    if (any(is.na(modeled_design$condition))) {
+        stop("Could not align the validated covariate design with the imported ISAR samples.", call. = FALSE)
+    }
+    switch_list$designMatrix <- modeled_design
+}
 
 saveRDS(switch_list, file.path(opts$outdir, "switchAnalyzeRlist_imported.rds"))
 
@@ -368,7 +553,8 @@ notes <- c(
     sprintf("Samples imported: %d", nrow(design)),
     sprintf("Conditions: %s", paste(names(condition_counts), collapse = ", ")),
     sprintf("Replicates per condition: %s", paste(sprintf("%s=%d", names(condition_counts), as.integer(condition_counts)), collapse = ", ")),
-    sprintf("Comparisons requested: %d", ifelse(is.null(comparisons), 0L, nrow(comparisons)))
+    sprintf("Comparisons requested: %d", ifelse(is.null(comparisons), 0L, nrow(comparisons))),
+    design_notes
 )
 
 if (can_run_test) {
@@ -377,20 +563,20 @@ if (can_run_test) {
     result <- tryCatch({
         analyzed <- isoformSwitchTestDEXSeq(
             switchAnalyzeRlist = switch_list,
-            alpha = as.numeric(opts$qvalue_cutoff),
-            dIFcutoff = as.numeric(opts$dif_cutoff),
+            alpha = qvalue_cutoff,
+            dIFcutoff = dif_cutoff,
             reduceToSwitchingGenes = FALSE,
             quiet = TRUE,
             showProgress = FALSE
         )
         safe_write_csv(extractSwitchSummary(analyzed), file.path(opts$outdir, "switch_summary.csv"))
-        safe_write_csv(extractTopSwitches(analyzed, n = as.integer(opts$top_n)), file.path(opts$outdir, "top_switches.csv"))
+        safe_write_csv(extractTopSwitches(analyzed, n = top_n), file.path(opts$outdir, "top_switches.csv"))
         write_go_gene_scores(
             analyzed,
             contrast_labels,
             file.path(opts$outdir, "go_gene_scores.csv"),
-            as.numeric(opts$qvalue_cutoff),
-            as.numeric(opts$dif_cutoff)
+            qvalue_cutoff,
+            dif_cutoff
         )
         saveRDS(analyzed, file.path(opts$outdir, "switchAnalyzeRlist_analyzed.rds"))
         list(success = TRUE)
