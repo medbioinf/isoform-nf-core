@@ -418,7 +418,7 @@ Implementation status:
 - Added as an optional module controlled by `--run_signalp`.
 - Added dedicated preparation, run, and import modules.
 - Added output, interface, and prerequisites documentation.
-- Documented the SignalP container/licensing caveat.
+- Replaced the unaffiliated public image dependency with a required user-provided, appropriately licensed SignalP 5.0b container.
 
 Validation performed:
 
@@ -441,6 +441,7 @@ nextflow run . -profile docker \
     --transcript_fasta ../nextflow-studienprojekt/gse50760/reference/gencode.v49.transcripts.fa.gz \
     --gtf ../nextflow-studienprojekt/gse50760/reference/gencode.v49.chr_patch_hapl_scaff.annotation.gtf.gz \
     --run_signalp \
+    --signalp_container <licensed-signalp-5.0b-image-or-sif> \
     --outdir results/gse50760_4v4_signalp_full_validation \
     --multiqc_title GSE50760_4v4_signalp_full_validation \
     -work-dir work_gse50760_4v4_signalp_full_validation
@@ -465,10 +466,10 @@ Issue discovered and fixed:
 - Calling `/opt/signalp/bin/signalp` directly was not suitable because SignalP's bundled assets are resolved relative to its expected runtime layout.
 - The module now exports `/opt/signalp/bin` onto `PATH` before invoking `signalp`.
 
-Runtime note:
+Release note:
 
-- The current third-party SignalP image lacks `ps`, which Nextflow needs for trace/timeline/report metrics.
-- Runs with `--run_signalp` currently disable those runtime reports until a more suitable pinned container is available.
+- The historical VM validation used a third-party SignalP image. That image is no longer pulled or redistributed by the release pipeline.
+- Current runs must provide `--signalp_container` with a SignalP 5.0b image or SIF provisioned under the user's institutional license. Container contents and metric tooling are therefore user-controlled.
 
 Copied-back local inspection path:
 
@@ -508,6 +509,7 @@ nextflow config -profile test,docker
 nextflow run . -profile test,docker -stub-run -resume \
     --run_deeptmhmm true \
     --run_deeploc2 true \
+    --deeploc2_container <licensed-deeploc-2.1-image-or-sif> \
     --run_annotated_switch_plots true \
     --outdir results/test_milestone_b_stub3 \
     -work-dir work_test_milestone_b_stub3
@@ -520,6 +522,7 @@ nextflow config -profile test,docker
 nextflow run . -profile test,docker -stub-run -resume \
     --run_deeptmhmm \
     --run_deeploc2 \
+    --deeploc2_container <licensed-deeploc-2.1-image-or-sif> \
     --run_annotated_switch_plots \
     --outdir results/test_milestone_b_stub_final \
     -work-dir work_test_milestone_b_stub_final
@@ -540,6 +543,7 @@ nextflow run . -profile docker -resume \
     --gtf ../nextflow-studienprojekt/gse50760/reference/gencode.v49.chr_patch_hapl_scaff.annotation.gtf.gz \
     --run_deeptmhmm true \
     --run_deeploc2 true \
+    --deeploc2_container <licensed-deeploc-2.1-image-or-sif> \
     --run_annotated_switch_plots true \
     --annotated_switch_top_n 5 \
     --outdir results/gse50760_4v4_milestone_b_full_validation \
@@ -722,6 +726,7 @@ nextflow run . \
     --pfam_db ../nextflow-studienprojekt/gse50760/reference/pfam/Pfam37.0 \
     --run_deeptmhmm \
     --run_deeploc2 \
+    --deeploc2_container <licensed-deeploc-2.1-image-or-sif> \
     --run_annotated_switch_plots \
     --annotated_switch_genes ZNRF3,PBX3,YEATS4 \
     --annotated_switch_condition1 normal_colon \
@@ -758,9 +763,11 @@ nextflow run . \
     --gtf ../nextflow-studienprojekt/gse50760/reference/gencode.v49.chr_patch_hapl_scaff.annotation.gtf.gz \
     --pfam_db ../nextflow-studienprojekt/gse50760/reference/pfam/Pfam37.0 \
     --run_signalp \
+    --signalp_container <licensed-signalp-5.0b-image-or-sif> \
     --run_iupred2a \
     --run_deeptmhmm \
     --run_deeploc2 \
+    --deeploc2_container <licensed-deeploc-2.1-image-or-sif> \
     --run_annotated_switch_plots \
     --annotated_switch_genes ZNRF3,PBX3,YEATS4 \
     --annotated_switch_condition1 normal_colon \
@@ -937,6 +944,7 @@ nextflow run . \
     -profile test,docker \
     -stub-run \
     --run_signalp \
+    --signalp_container <licensed-signalp-5.0b-image-or-sif> \
     --outdir results/test_signalp_stub
 ```
 
@@ -948,6 +956,7 @@ nextflow run . \
     -stub-run \
     --run_deeptmhmm true \
     --run_deeploc2 true \
+    --deeploc2_container <licensed-deeploc-2.1-image-or-sif> \
     --run_annotated_switch_plots true \
     --outdir results/test_milestone_b_stub
 ```
@@ -967,7 +976,7 @@ For changes touching SRA mode:
 - Full real-data runs are manual and not part of CI.
 - SRA tests depend on network access and public archive availability.
 - Pfam tests require a prepared local Pfam database.
-- Full SignalP validation depends on a usable SignalP container and currently disables Nextflow trace/timeline/report metrics because the configured image lacks `ps`.
+- Full SignalP validation depends on a user-provided, appropriately licensed SignalP 5.0b container.
 - Full DeepTMHMM and DeepLoc2 validation is manual because the tools are too heavy for ordinary CI.
 - The synthetic fixture is intentionally tiny and cannot prove biological correctness.
 - More nf-test snapshots/assertions should be added once the output contract stabilizes.

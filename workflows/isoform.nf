@@ -36,6 +36,10 @@ include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pi
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_isoform_pipeline'
 
+def paramEnabled(value) {
+    return value instanceof String ? value.toBoolean() : value as Boolean
+}
+
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     RUN MAIN WORKFLOW
@@ -169,7 +173,7 @@ workflow ISOFORM {
     ch_deeploc2_run_results = channel.empty()
     ch_deeploc2_import_results = channel.empty()
     ch_annotated_switch_plot_results = channel.empty()
-    if (params.run_isar) {
+    if (paramEnabled(params.run_isar)) {
         ch_analysis_script = channel.value(file("${projectDir}/bin/run_isar_analysis.R", checkIfExists: true))
         ch_input_samplesheet = ch_metadata_file
         ch_contrasts = params.contrasts ?
@@ -188,7 +192,7 @@ workflow ISOFORM {
         ch_isar_results = ISAR_ANALYSIS.out.results
         ch_current_annotated_isar = ISAR_ANALYSIS.out.results
 
-        if (params.run_isar_visualization) {
+        if (paramEnabled(params.run_isar_visualization)) {
             ch_visualization_script = channel.value(file("${projectDir}/bin/run_isar_visualization.R", checkIfExists: true))
             ISAR_VISUALIZATION (
                 ch_visualization_script,
@@ -197,7 +201,7 @@ workflow ISOFORM {
             ch_isar_visualization_results = ISAR_VISUALIZATION.out.results
         }
 
-        if (params.run_isar_contrast_summary) {
+        if (paramEnabled(params.run_isar_contrast_summary)) {
             ch_contrast_summary_script = channel.value(file("${projectDir}/bin/run_isar_contrast_summary.R", checkIfExists: true))
             ISAR_CONTRAST_SUMMARY (
                 ch_contrast_summary_script,
@@ -206,7 +210,7 @@ workflow ISOFORM {
             ch_isar_contrast_summary_results = ISAR_CONTRAST_SUMMARY.out.results
         }
 
-        if (params.run_go_enrichment) {
+        if (paramEnabled(params.run_go_enrichment)) {
             ch_go_enrichment_script = channel.value(file("${projectDir}/bin/run_go_enrichment.R", checkIfExists: true))
             ch_go_reference_gene_file = params.go_reference_gene_file ?
                 channel.value(file(params.go_reference_gene_file, checkIfExists: true)) :
@@ -222,7 +226,7 @@ workflow ISOFORM {
             ch_versions = ch_versions.mix(ISOFORM_GO_ENRICHMENT.out.versions)
         }
 
-        if (params.run_pfam_prepare || (!params.pfam_results && params.pfam_db)) {
+        if (paramEnabled(params.run_pfam_prepare) || (!params.pfam_results && params.pfam_db)) {
             ch_pfam_prepare_script = channel.value(file("${projectDir}/bin/run_pfam_prepare.R", checkIfExists: true))
             PFAM_PREPARE (
                 ch_pfam_prepare_script,
@@ -253,7 +257,7 @@ workflow ISOFORM {
             ch_pfam_import_results = PFAM_IMPORT.out.results
             ch_current_annotated_isar = PFAM_IMPORT.out.results
 
-            if (params.run_pfam_visualization) {
+            if (paramEnabled(params.run_pfam_visualization)) {
                 ch_pfam_visualization_script = channel.value(file("${projectDir}/bin/run_pfam_visualization.R", checkIfExists: true))
                 PFAM_VISUALIZATION (
                     ch_pfam_visualization_script,
@@ -263,7 +267,7 @@ workflow ISOFORM {
             }
         }
 
-        if (params.run_iupred2a) {
+        if (paramEnabled(params.run_iupred2a)) {
             ch_iupred2a_prepare_script = channel.value(file("${projectDir}/bin/run_iupred2a_prepare.R", checkIfExists: true))
             ch_iupred2a_convert_script = channel.value(file("${projectDir}/bin/convert_iupred2a_to_isar.py", checkIfExists: true))
             ch_iupred2a_import_script = channel.value(file("${projectDir}/bin/run_iupred2a_import.R", checkIfExists: true))
@@ -289,7 +293,7 @@ workflow ISOFORM {
             ch_current_annotated_isar = IUPRED2A_IMPORT.out.results
         }
 
-        if (params.run_signalp) {
+        if (paramEnabled(params.run_signalp)) {
             ch_signalp_prepare_script = channel.value(file("${projectDir}/bin/run_signalp_prepare.R", checkIfExists: true))
             ch_signalp_import_script = channel.value(file("${projectDir}/bin/run_signalp_import.R", checkIfExists: true))
 
@@ -313,7 +317,7 @@ workflow ISOFORM {
             ch_current_annotated_isar = SIGNALP_IMPORT.out.results
         }
 
-        if (params.run_deeptmhmm) {
+        if (paramEnabled(params.run_deeptmhmm)) {
             ch_deeptmhmm_prepare_script = channel.value(file("${projectDir}/bin/run_deeptmhmm_prepare.R", checkIfExists: true))
             ch_deeptmhmm_convert_script = channel.value(file("${projectDir}/bin/convert_deeptmhmm_3line_to_isar.py", checkIfExists: true))
             ch_deeptmhmm_import_script = channel.value(file("${projectDir}/bin/run_deeptmhmm_import.R", checkIfExists: true))
@@ -339,7 +343,7 @@ workflow ISOFORM {
             ch_current_annotated_isar = DEEPTMHMM_IMPORT.out.results
         }
 
-        if (params.run_deeploc2) {
+        if (paramEnabled(params.run_deeploc2)) {
             ch_deeploc2_prepare_script = channel.value(file("${projectDir}/bin/run_deeploc2_prepare.R", checkIfExists: true))
             ch_deeploc2_convert_script = channel.value(file("${projectDir}/bin/convert_deeploc2_to_isar.py", checkIfExists: true))
             ch_deeploc2_import_script = channel.value(file("${projectDir}/bin/run_deeploc2_import.R", checkIfExists: true))
@@ -365,7 +369,7 @@ workflow ISOFORM {
             ch_current_annotated_isar = DEEPLOC2_IMPORT.out.results
         }
 
-        if (params.run_annotated_switch_plots) {
+        if (paramEnabled(params.run_annotated_switch_plots)) {
             ch_annotated_switch_plot_script = channel.value(file("${projectDir}/bin/run_annotated_switch_plots.R", checkIfExists: true))
             ANNOTATED_SWITCH_PLOTS (
                 ch_annotated_switch_plot_script,

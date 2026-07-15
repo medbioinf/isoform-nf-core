@@ -552,11 +552,17 @@ false
 
 Controls whether the pipeline runs optional SignalP signal peptide annotation on significant isoform switch candidates.
 
-SignalP predicts signal peptides. A signal peptide is a short protein segment that can route a protein into the secretory pathway, where proteins may be secreted, inserted into membranes, or processed in membrane-related compartments.
+SignalP predicts N-terminal signal peptides. A positive prediction supports entry into the secretory pathway; it does not by itself establish final secretion, subcellular localization, or a membrane anchor.
 
 When enabled, the pipeline extracts amino-acid FASTA sequences from significant switch candidates, runs SignalP 5 in eukaryotic mode, and imports the result with `analyzeSignalP()`.
 
-SignalP has historically had more restrictive distribution/licensing expectations than fully open tools. The current implementation is reproducible when the configured container is available, but container suitability should be checked for the target environment.
+SignalP 5.0b is distributed under a restrictive DTU license. Enabling this branch requires a user-provisioned, appropriately licensed container and a container-enabled profile.
+
+### `--signalp_container`
+
+Default: unset.
+
+Required with `--run_signalp`. Provide a private/local SignalP 5.0b container reference or SIF that exposes a compatible `signalp` command. The pipeline does not redistribute or automatically download SignalP; prefer an immutable image digest or record the SIF checksum.
 
 ### `--signalp_top_n`
 

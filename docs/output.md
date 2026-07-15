@@ -223,7 +223,7 @@ IUPred2A support is optional and controlled by `--run_iupred2a`. It predicts int
 
 ### SignalP annotation
 
-SignalP support is optional and controlled by `--run_signalp`. It predicts signal peptides in proteins from significant isoform switch candidates. Signal peptides are short protein segments that can route proteins into secretory or membrane-associated pathways.
+SignalP support is optional and controlled by `--run_signalp`. It predicts N-terminal signal peptides in proteins from significant isoform switch candidates. A positive prediction supports entry into the secretory pathway, but does not by itself establish final secretion, localization, or a membrane anchor. A licensed user-supplied SignalP 5.0b container is required via `--signalp_container`.
 
 - `signalp/signalp_prepare/`
   - `isoform_signalp_candidates_AA.fasta`: amino-acid FASTA used as SignalP input.
@@ -240,7 +240,7 @@ SignalP support is optional and controlled by `--run_signalp`. It predicts signa
   - `signalp_summary.png` / `.pdf` / `.csv`: overview of imported signal peptide annotation availability.
   - `signalp_import_notes.txt`: import summary and interpretation notes.
 
-SignalP container and licensing suitability should be checked for the target environment before treating it as a fully portable public pipeline dependency.
+The pipeline does not redistribute or automatically download SignalP. Use a container provisioned under the appropriate institutional license and record an immutable image digest or SIF checksum for reproducibility.
 
 ### DeepTMHMM annotation
 
@@ -266,7 +266,7 @@ DeepTMHMM can be slow on real datasets because it embeds protein sequences befor
 
 ### DeepLoc2 annotation
 
-DeepLoc2 support is optional and controlled by `--run_deeploc2`. It predicts subcellular localization labels for proteins from significant isoform switch candidates.
+DeepLoc2 support is optional and controlled by `--run_deeploc2`. It predicts subcellular localization labels for proteins from significant isoform switch candidates. A licensed user-supplied DeepLoc 2.1 container is required via `--deeploc2_container`.
 
 - `deeploc2/deeploc2_prepare/`
   - `isoform_deeploc2_candidates_AA.fasta`: amino-acid FASTA used as DeepLoc2 input.
@@ -284,7 +284,7 @@ DeepLoc2 support is optional and controlled by `--run_deeploc2`. It predicts sub
   - `deeploc2_summary.png` / `.pdf` / `.csv`: overview of imported localization labels.
   - `deeploc2_import_notes.txt`: import summary and interpretation notes.
 
-DeepLoc2 may download model assets on first use, depending on the container cache state. Plan for network access and additional runtime on the first run.
+The module uses the fast CPU model. Compared with the slower model this trades a small amount of accuracy for throughput, and DeepLoc truncates sequences longer than 1022 amino acids by retaining their ends. Preserve the raw prediction table and run log when reporting results.
 
 ### Annotated switch plots
 

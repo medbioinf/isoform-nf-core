@@ -18,13 +18,16 @@ Second beta release of Anton-Bch/isoform-nf-core, focused on scientific correctn
 - Differential isoform usage models now include batch and all complete additional covariates, with explicit confounding checks.
 - Salmon automatic library inference remains automatic instead of being converted to an unstranded assumption.
 - Optional annotation branches retain execution reports while tolerating containers without process-metric support.
+- SignalP 5.0b and DeepLoc 2.1 now require user-supplied licensed containers instead of redistributing unaffiliated public images.
 
 ### `Fixed`
 
 - Preserved biological samples with multiple SRA runs through download, regrouping, concatenation, and paired-read ordering.
 - Required GO q-value and dIF thresholds to pass on the same isoform, preventing cross-isoform false positives.
 - Made Pfam indexing compatible with read-only reference directories and tolerated empty IUPred2A imports.
-- Pinned DeepTMHMM and DeepLoc2 containers by immutable digest.
+- Pinned the DeepTMHMM container by immutable digest.
+- Corrected DeepLoc 2.1 citation and fast-model interpretation guidance.
+- Normalized CLI boolean parameters under the Nextflow 26 syntax parser.
 - Restored parser compatibility with Nextflow 26 by removing the deprecated `for` loop syntax.
 - Hardened the privileged template-version workflow so pull-request code is never checked out or executed.
 - Enabled release-mode nf-core linting for pull requests targeting `main` as well as `master`.

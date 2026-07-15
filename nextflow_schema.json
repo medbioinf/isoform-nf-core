@@ -140,7 +140,8 @@
                     "fa_icon": "fas fa-fish"
                 },
                 "igenomes_ignore": {
-                    "type": "boolean",
+                    "type": ["boolean", "string"],
+                    "enum": [true, false, "true", "false", "True", "False"],
                     "description": "Do not load the iGenomes reference config.",
                     "fa_icon": "fas fa-ban",
                     "hidden": true,
@@ -163,7 +164,8 @@
             "description": "Options controlling the downstream isoform switch analysis.",
             "properties": {
                 "run_isar": {
-                    "type": "boolean",
+                    "type": ["boolean", "string"],
+                    "enum": [true, false, "true", "false", "True", "False"],
                     "default": true,
                     "description": "Run IsoformSwitchAnalyzeR after Salmon quantification.",
                     "help_text": "Disable this for debugging or for Salmon-only preprocessing runs."
@@ -190,7 +192,8 @@
                     "description": "Number of top switch candidates to export when a statistical switch test is run."
                 },
                 "run_isar_visualization": {
-                    "type": "boolean",
+                    "type": ["boolean", "string"],
+                    "enum": [true, false, "true", "false", "True", "False"],
                     "default": true,
                     "description": "Generate lightweight IsoformSwitchAnalyzeR result visualizations.",
                     "help_text": "Creates official IsoformSwitchAnalyzeR switchPlot pages, volcano, top-gene, per-gene isoform usage, PTC summary, and candidate CSV outputs after the ISAR step. No-switch or import-only runs finish gracefully with notes and empty summary tables."
@@ -202,7 +205,8 @@
                     "description": "Number of top switching genes used for ISAR visualization outputs."
                 },
                 "run_isar_contrast_summary": {
-                    "type": "boolean",
+                    "type": ["boolean", "string"],
+                    "enum": [true, false, "true", "false", "True", "False"],
                     "default": true,
                     "description": "Generate cross-contrast summaries for significant isoform switches.",
                     "help_text": "Creates a per-comparison bar plot and an UpSet-style intersection plot from the analyzed IsoformSwitchAnalyzeR result. This is most useful when --contrasts contains multiple pairwise comparisons."
@@ -214,7 +218,8 @@
                     "description": "Number of largest isoform-switch intersections to show in the UpSet-style contrast summary plot."
                 },
                 "run_go_enrichment": {
-                    "type": "boolean",
+                    "type": ["boolean", "string"],
+                    "enum": [true, false, "true", "false", "True", "False"],
                     "default": false,
                     "description": "Run optional GO enrichment on significant isoform-switching genes after IsoformSwitchAnalyzeR.",
                     "help_text": "When enabled, the pipeline summarizes significant switching genes per contrast and runs WebGestaltR over-representation analysis. This is off by default because it adds an extra runtime dependency and may require online WebGestalt/database access."
@@ -244,7 +249,8 @@
                     "help_text": "Defaults to all ISAR-tested genes for each contrast. Provide this only when you need a custom reference universe."
                 },
                 "run_pfam_prepare": {
-                    "type": "boolean",
+                    "type": ["boolean", "string"],
+                    "enum": [true, false, "true", "false", "True", "False"],
                     "default": false,
                     "description": "Prepare amino-acid FASTA input for optional Pfam domain annotation.",
                     "help_text": "After ISAR, the pipeline can extract amino-acid sequences from significant switching genes. The resulting FASTA can be scanned with pfam_scan.pl or HMMER against a Pfam database. This is enabled automatically when --pfam_db is provided."
@@ -268,7 +274,8 @@
                     "description": "Number of strongest switch candidates to include in the Pfam preparation table."
                 },
                 "run_pfam_visualization": {
-                    "type": "boolean",
+                    "type": ["boolean", "string"],
+                    "enum": [true, false, "true", "false", "True", "False"],
                     "default": true,
                     "description": "Generate Pfam domain consequence and domain architecture visualizations when Pfam results are imported."
                 },
@@ -279,7 +286,8 @@
                     "description": "Number of Pfam domain-change candidates to plot."
                 },
                 "run_iupred2a": {
-                    "type": "boolean",
+                    "type": ["boolean", "string"],
+                    "enum": [true, false, "true", "false", "True", "False"],
                     "default": false,
                     "description": "Run optional IUPred2A/ANCHOR2 disorder annotation on significant isoform switch candidates.",
                     "help_text": "When enabled, the pipeline extracts amino-acid sequences for significant switch candidates, runs IUPred2A with ANCHOR2, converts the output into the format expected by IsoformSwitchAnalyzeR, and imports IDR annotations with analyzeIUPred2A()."
@@ -291,10 +299,16 @@
                     "description": "Number of strongest switch candidates to include in the IUPred2A preparation table."
                 },
                 "run_signalp": {
-                    "type": "boolean",
+                    "type": ["boolean", "string"],
+                    "enum": [true, false, "true", "false", "True", "False"],
                     "default": false,
                     "description": "Run optional SignalP signal peptide annotation on significant isoform switch candidates.",
-                    "help_text": "When enabled, the pipeline extracts amino-acid sequences for significant switch candidates, runs SignalP 5 in eukaryotic mode, and imports signal peptide annotations with analyzeSignalP(). SignalP container/license suitability should be checked for the target environment."
+                    "help_text": "When enabled, the pipeline extracts amino-acid sequences for significant switch candidates, runs SignalP 5.0b in eukaryotic mode, and imports signal peptide annotations with analyzeSignalP(). A licensed user-supplied container must be provided with --signalp_container."
+                },
+                "signalp_container": {
+                    "type": "string",
+                    "description": "User-supplied SignalP 5.0b container image or local SIF path.",
+                    "help_text": "Required with --run_signalp. Obtain SignalP 5.0b under the appropriate DTU license, build or provision the container within that license, and provide an image reference supported by the selected container profile. The pipeline does not redistribute or automatically download SignalP."
                 },
                 "signalp_top_n": {
                     "type": "integer",
@@ -303,7 +317,8 @@
                     "description": "Number of strongest switch candidates to include in the SignalP preparation table."
                 },
                 "run_deeptmhmm": {
-                    "type": "boolean",
+                    "type": ["boolean", "string"],
+                    "enum": [true, false, "true", "false", "True", "False"],
                     "default": false,
                     "description": "Run optional DeepTMHMM topology annotation on significant isoform switch candidates.",
                     "help_text": "When enabled, the pipeline extracts amino-acid sequences for significant switch candidates, runs DeepTMHMM, converts the 3-line topology output into the format expected by IsoformSwitchAnalyzeR, and imports topology annotations with analyzeDeepTMHMM()."
@@ -315,10 +330,16 @@
                     "description": "Number of strongest switch candidates to include in the DeepTMHMM preparation table."
                 },
                 "run_deeploc2": {
-                    "type": "boolean",
+                    "type": ["boolean", "string"],
+                    "enum": [true, false, "true", "false", "True", "False"],
                     "default": false,
                     "description": "Run optional DeepLoc2 subcellular localization annotation on significant isoform switch candidates.",
-                    "help_text": "When enabled, the pipeline extracts amino-acid sequences for significant switch candidates, runs DeepLoc2 with the fast CPU model, converts the output into the format expected by IsoformSwitchAnalyzeR, and imports localization annotations with analyzeDeepLoc2()."
+                    "help_text": "When enabled, the pipeline extracts amino-acid sequences for significant switch candidates, runs DeepLoc 2.1 with the fast CPU model, converts the output into the format expected by IsoformSwitchAnalyzeR, and imports localization annotations with analyzeDeepLoc2(). A licensed user-supplied container must be provided with --deeploc2_container."
+                },
+                "deeploc2_container": {
+                    "type": "string",
+                    "description": "User-supplied DeepLoc 2.1 container image or local SIF path.",
+                    "help_text": "Required with --run_deeploc2. Obtain DeepLoc 2.1 under the appropriate DTU license, build or provision the container within that license, and provide an image reference supported by the selected container profile. The pipeline does not redistribute or automatically download DeepLoc."
                 },
                 "deeploc2_top_n": {
                     "type": "integer",
@@ -327,7 +348,8 @@
                     "description": "Number of strongest switch candidates to include in the DeepLoc2 preparation table."
                 },
                 "run_annotated_switch_plots": {
-                    "type": "boolean",
+                    "type": ["boolean", "string"],
+                    "enum": [true, false, "true", "false", "True", "False"],
                     "default": false,
                     "description": "Generate rich IsoformSwitchAnalyzeR switchPlot outputs from the most annotated switchAnalyzeRlist available.",
                     "help_text": "This downstream plotting step uses the chained annotated ISAR object produced by optional Pfam, IUPred2A, SignalP, DeepTMHMM, and DeepLoc2 imports. It can also run with only the base ISAR object, but it is most useful after annotations are enabled."
@@ -352,7 +374,8 @@
                     "description": "Optional second condition name for annotated switch plots. Defaults to the first comparison in the ISAR object."
                 },
                 "annotated_switch_plot_topology": {
-                    "type": "boolean",
+                    "type": ["boolean", "string"],
+                    "enum": [true, false, "true", "false", "True", "False"],
                     "default": true,
                     "description": "Request topology tracks in annotated switch plots when topology annotations are available."
                 }
@@ -414,7 +437,8 @@
             "help_text": "These options are common to all nf-core pipelines and allow you to customise some of the core preferences for how the pipeline runs.\n\nTypically these options would be set in a Nextflow config file loaded for all pipeline runs, such as `~/.nextflow/config`.",
             "properties": {
                 "version": {
-                    "type": "boolean",
+                    "type": ["boolean", "string"],
+                    "enum": [true, false, "true", "false", "True", "False"],
                     "description": "Display version and exit.",
                     "fa_icon": "fas fa-question-circle",
                     "hidden": true
@@ -437,7 +461,8 @@
                     "hidden": true
                 },
                 "plaintext_email": {
-                    "type": "boolean",
+                    "type": ["boolean", "string"],
+                    "enum": [true, false, "true", "false", "True", "False"],
                     "description": "Send plain-text email instead of HTML.",
                     "fa_icon": "fas fa-remove-format",
                     "hidden": true
@@ -451,7 +476,8 @@
                     "hidden": true
                 },
                 "monochrome_logs": {
-                    "type": "boolean",
+                    "type": ["boolean", "string"],
+                    "enum": [true, false, "true", "false", "True", "False"],
                     "description": "Do not use coloured log outputs.",
                     "fa_icon": "fas fa-palette",
                     "hidden": true
@@ -482,7 +508,8 @@
                     "fa_icon": "fas fa-cog"
                 },
                 "validate_params": {
-                    "type": "boolean",
+                    "type": ["boolean", "string"],
+                    "enum": [true, false, "true", "false", "True", "False"],
                     "description": "Boolean whether to validate parameters against the schema at runtime",
                     "default": true,
                     "fa_icon": "fas fa-check-square",
@@ -510,14 +537,17 @@
                 },
                 "help": {
                     "type": ["boolean", "string"],
+                    "enum": [true, false, "true", "false", "True", "False"],
                     "description": "Display the help message."
                 },
                 "help_full": {
-                    "type": "boolean",
+                    "type": ["boolean", "string"],
+                    "enum": [true, false, "true", "false", "True", "False"],
                     "description": "Display the full detailed help message."
                 },
                 "show_hidden": {
-                    "type": "boolean",
+                    "type": ["boolean", "string"],
+                    "enum": [true, false, "true", "false", "True", "False"],
                     "description": "Display hidden parameters in the help message (only works when --help or --help_full are provided)."
                 }
             }

@@ -17,6 +17,24 @@ include { ISOFORM  } from './workflows/isoform'
 include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_nfcore_isoform_pipeline'
 include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_isoform_pipeline'
 
+/* Nextflow 26's v2 parser leaves untyped CLI values as strings. */
+def cliBoolean(value) {
+    return value instanceof String ? value.toBoolean() : value as Boolean
+}
+
+def helpRequested(value) {
+    return value instanceof String ? value.toLowerCase() != 'false' : value as Boolean
+}
+
+/* Nextflow's v2 parser also exposes boolean option values through `args`;
+ * those synthetic values are options, not positional arguments. */
+def positionalCliArguments(values) {
+    return values.findAll { value ->
+        def normalized = value?.toString()?.toLowerCase()
+        return !(normalized in ['true', 'false'])
+    }
+}
+
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     NAMED WORKFLOWS FOR PIPELINE
@@ -82,16 +100,16 @@ workflow {
     // SUBWORKFLOW: Run initialisation tasks
     //
     PIPELINE_INITIALISATION (
-        params.version,
-        params.validate_params,
-        params.monochrome_logs,
-        args,
+        cliBoolean(params.version),
+        cliBoolean(params.validate_params),
+        cliBoolean(params.monochrome_logs),
+        positionalCliArguments(args),
         params.outdir,
         params.input,
         params.sra_manifest,
-        params.help,
-        params.help_full,
-        params.show_hidden
+        helpRequested(params.help),
+        cliBoolean(params.help_full),
+        cliBoolean(params.show_hidden)
     )
 
     //
@@ -108,9 +126,9 @@ workflow {
     PIPELINE_COMPLETION (
         params.email,
         params.email_on_fail,
-        params.plaintext_email,
+        cliBoolean(params.plaintext_email),
         params.outdir,
-        params.monochrome_logs,
+        cliBoolean(params.monochrome_logs),
         params.hook_url,
         ISOFORM_NF_CORE.out.multiqc_report
     )

@@ -432,7 +432,7 @@ Predict signal peptides.
 
 Non-biologist explanation:
 
-A signal peptide is like an address label that sends a protein into the secretory pathway.
+A signal peptide is like an address label that sends a protein into the secretory pathway. The prediction does not by itself determine the protein's final location or prove that it is secreted.
 
 Why useful:
 
@@ -440,7 +440,7 @@ An isoform switch could add or remove this address label.
 
 Operational note:
 
-Licensing and reproducible container availability need careful review.
+SignalP 5.0b must be obtained under the appropriate DTU license and supplied in a private/local container; the pipeline does not redistribute it.
 
 ### IUPred2A
 

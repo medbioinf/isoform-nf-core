@@ -25,6 +25,23 @@ lint:
   nextflow_config:
     - manifest.name
     - manifest.homePage
+    # nf-core/tools 3.5.2 stringifies defaults whose JSON Schema type is a
+    # boolean/string union. Runtime schema validation still constrains these
+    # values to true or false for Nextflow 25 and 26 CLI compatibility.
+    - config_defaults:
+        - params.run_isar
+        - params.run_isar_visualization
+        - params.run_isar_contrast_summary
+        - params.run_go_enrichment
+        - params.run_pfam_prepare
+        - params.run_pfam_visualization
+        - params.run_iupred2a
+        - params.run_signalp
+        - params.run_deeptmhmm
+        - params.run_deeploc2
+        - params.run_annotated_switch_plots
+        - params.annotated_switch_plot_topology
+        - params.validate_params
   # Static MultiQC plot export is deliberately disabled because the bundled
   # image does not ship a supported renderer. The interactive HTML report is
   # still produced and validated end to end.

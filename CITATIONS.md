@@ -50,9 +50,9 @@
 
 > Hallgren J, Tsirigos KD, Pedersen MD, Almagro Armenteros JJ, Marcatili P, Nielsen H, Krogh A, Winther O. DeepTMHMM predicts alpha and beta transmembrane proteins using deep neural networks. bioRxiv. 2022. doi: 10.1101/2022.04.08.487609.
 
-- [DeepLoc 2.0](https://pubmed.ncbi.nlm.nih.gov/35489069/)
+- [DeepLoc 2.1](https://doi.org/10.1093/nar/gkae237)
 
-> Thumuluri V, Almagro Armenteros JJ, Johansen AR, Nielsen H, Winther O. DeepLoc 2.0: multi-label subcellular localization prediction using protein language models. Nucleic Acids Res. 2022 Jul 5;50(W1):W228-W234. doi: 10.1093/nar/gkac278. PubMed PMID: 35489069.
+> Ødum MT, Teufel F, Thumuluri V, Almagro Armenteros JJ, Johansen AR, Winther O, Nielsen H. DeepLoc 2.1: multi-label membrane protein type prediction using protein language models. Nucleic Acids Res. 2024 Jul 5;52(W1):W215-W220. doi: 10.1093/nar/gkae237.
 
 ## Software packaging/containerisation tools
 

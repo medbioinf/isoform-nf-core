@@ -60,6 +60,11 @@ jobs:
         with:
           apptainer-version: 1.3.4
 
+      - name: Limit Apptainer build resources
+        run: |
+          sudo "$(command -v apptainer)" config global --set "mksquashfs procs" 1
+          sudo "$(command -v apptainer)" config global --set "mksquashfs mem" 1G
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -71,6 +76,8 @@ jobs:
 
       - name: Download the pipeline
         env:
+          APPTAINER_DISABLE_CACHE: "true"
+          APPTAINER_TMPDIR: ${{ runner.temp }}
           NXF_SINGULARITY_CACHEDIR: ./singularity_container_images
           REPO_BRANCH: ${{ needs.configure.outputs.REPO_BRANCH }}
           REPO_LOWERCASE: ${{ needs.configure.outputs.REPO_LOWERCASE }}

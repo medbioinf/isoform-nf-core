@@ -133,9 +133,9 @@ Optional annotation modules can be enabled when you want biological interpretati
 
 - `--pfam_db` or `--pfam_results` adds protein-domain annotation.
 - `--run_iupred2a` adds intrinsically disordered region and ANCHOR2 predictions.
-- `--run_signalp` adds signal peptide predictions.
+- `--run_signalp` adds signal peptide predictions and requires a licensed user-supplied image via `--signalp_container` with a container-enabled profile.
 - `--run_deeptmhmm` adds transmembrane topology predictions.
-- `--run_deeploc2` adds subcellular localization predictions.
+- `--run_deeploc2` adds subcellular localization predictions and requires a licensed user-supplied image via `--deeploc2_container` with a container-enabled profile.
 - `--run_annotated_switch_plots` renders gene-level switch plots using the newest available annotation layers.
 
 These modules are optional because they add extra runtime, storage, and container or database requirements. For quick statistical runs, leave them disabled. For publication-style inspection of selected genes, enable the relevant annotation modules and optionally set `--annotated_switch_genes`.
@@ -184,10 +184,12 @@ pfam_visualization_top_n: 12
 run_iupred2a: false
 iupred2a_top_n: 25
 run_signalp: false
+signalp_container: null
 signalp_top_n: 25
 run_deeptmhmm: false
 deeptmhmm_top_n: 25
 run_deeploc2: false
+deeploc2_container: null
 deeploc2_top_n: 25
 run_annotated_switch_plots: false
 annotated_switch_top_n: 10

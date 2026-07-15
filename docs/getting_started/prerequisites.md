@@ -267,16 +267,15 @@ IUPred2A predicts intrinsically disordered regions. ANCHOR2 predicts disordered 
 SignalP annotation is optional and enabled with:
 
 ```bash
---run_signalp
+--run_signalp \
+--signalp_container your-private-registry/signalp:5.0b
 ```
 
-It does not require a separate biological reference database. The pipeline extracts protein sequences from the ISAR object and runs SignalP 5 in eukaryotic mode in a container.
+It does not require a separate biological reference database. The pipeline extracts protein sequences from the ISAR object and runs SignalP 5.0b in eukaryotic mode in a user-provided container.
 
-The main practical prerequisite is container availability. The current implementation uses the `btrspg/signalp:5.0b` container image. SignalP has historically had more restrictive distribution/licensing expectations than fully open bioinformatics tools, so the container and license situation should be checked for the target environment before relying on it in a public release.
+SignalP 5.0b is distributed by DTU under an academic license that restricts transfer and redistribution. Obtain the software under a license suitable for your institution, build or provision a private/local container that exposes the compatible `signalp` command, and pass its Docker/OCI reference or SIF path with `--signalp_container`. Run this option with a container-enabled profile; the Conda profile cannot install the licensed package. The pipeline intentionally does not redistribute or automatically download SignalP. Prefer an immutable registry digest or a versioned local SIF.
 
-Current implementation note: this third-party image is minimal and does not include `ps`, so some per-process runtime metrics may be unavailable. The pipeline still emits its trace, timeline, report, parameters, and DAG files so execution provenance is retained. Before a polished public release, this should ideally be replaced by a pinned container image that contains the standard runtime metric dependencies.
-
-SignalP predicts signal peptides. A signal peptide is a short protein segment that can route a protein into the secretory pathway or toward membrane-associated processing.
+SignalP predicts N-terminal signal peptides. A positive prediction supports entry into the secretory pathway; it does not by itself establish final secretion, subcellular localization, or a membrane anchor.
 
 ## Optional DeepTMHMM Prerequisites
 
@@ -297,14 +296,15 @@ DeepTMHMM is computationally heavier than lightweight plotting. Its runtime scal
 DeepLoc2 annotation is optional and enabled with:
 
 ```bash
---run_deeploc2
+--run_deeploc2 \
+--deeploc2_container your-private-registry/deeploc:2.1
 ```
 
-It does not require a separate biological reference database. The pipeline extracts protein sequences from the ISAR object, runs DeepLoc2 in a container, converts the prediction table, and imports localization labels into IsoformSwitchAnalyzeR.
+It does not require a separate biological reference database. The pipeline extracts protein sequences from the ISAR object, runs DeepLoc 2.1 in a user-provided container, converts the prediction table, and imports localization labels into IsoformSwitchAnalyzeR.
 
-The main practical prerequisite is container availability. The DeepLoc 2.1 image is pinned to immutable digest `sha256:4ed94de91083c332cc7405b99f2de5c0a94381cd8bce9e2fe81f7d5b32f97759`.
+DeepLoc 2.1 is distributed by DTU under an academic license that restricts transfer and redistribution. Obtain the software under a license suitable for your institution, then build or provision a private/local container and pass its Docker/OCI reference or SIF path with `--deeploc2_container`. Run this option with a container-enabled profile such as Docker, Apptainer, or Singularity; the Conda profile cannot install the licensed package. The pipeline intentionally does not redistribute, pin, or automatically download the licensed software. Prefer an immutable digest for registry images so that repeated analyses use the same environment.
 
-DeepLoc2 may download model assets on first use, depending on the container cache state. Make sure the run environment has either network access for the first run or pre-cached model/container assets.
+The pipeline uses DeepLoc's fast CPU model. This is the high-throughput mode; it has a small accuracy trade-off relative to the slower model, and sequences longer than 1022 amino acids are truncated by retaining their ends. Record this choice when interpreting or publishing localization results.
 
 ## Compute and Storage Expectations
 
@@ -383,6 +383,7 @@ nextflow run Anton-Bch/isoform-nf-core \
     --gtf reference/annotation.gtf.gz \
     --run_deeptmhmm \
     --run_deeploc2 \
+    --deeploc2_container your-private-registry/deeploc:2.1 \
     --run_annotated_switch_plots \
     --outdir results \
     -profile docker
