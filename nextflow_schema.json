@@ -117,7 +117,24 @@
                 },
                 "salmon_lib_type": {
                     "type": "string",
-                    "enum": ["A", "U", "SF", "SR", "IS", "IU", "ISF", "ISR", "OS", "OU", "OSF", "OSR", "MS", "MU", "MSF", "MSR"],
+                    "enum": [
+                        "A",
+                        "U",
+                        "SF",
+                        "SR",
+                        "IS",
+                        "IU",
+                        "ISF",
+                        "ISR",
+                        "OS",
+                        "OU",
+                        "OSF",
+                        "OSR",
+                        "MS",
+                        "MU",
+                        "MSF",
+                        "MSR"
+                    ],
                     "description": "Optional explicit Salmon library type.",
                     "help_text": "Leave unset to derive Salmon library type from samplesheet strandedness and single-end/paired-end status. Samplesheet 'auto' is passed as Salmon libType A. Advanced users can provide any supported Salmon libType explicitly.",
                     "fa_icon": "fas fa-fish"
