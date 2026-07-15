@@ -28,6 +28,7 @@ Second beta release of Anton-Bch/isoform-nf-core, focused on scientific correctn
 - Restored parser compatibility with Nextflow 26 by removing the deprecated `for` loop syntax.
 - Hardened the privileged template-version workflow so pull-request code is never checked out or executed.
 - Enabled release-mode nf-core linting for pull requests targeting `main` as well as `master`.
+- Authenticated and pinned the private-repository pipeline download release check.
 
 ### `Dependencies`
 

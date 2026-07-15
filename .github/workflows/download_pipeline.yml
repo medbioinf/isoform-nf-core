@@ -17,6 +17,8 @@ on:
       - master
 
 env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  NF_CORE_VERSION: "3.5.2"
   NXF_ANSI_LOG: false
 
 jobs:
@@ -61,7 +63,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install git+https://github.com/nf-core/tools.git
+          pip install "nf-core==$NF_CORE_VERSION"
 
       - name: Make a cache directory for the container images
         run: |
