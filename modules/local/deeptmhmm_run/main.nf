@@ -3,7 +3,7 @@ process DEEPTMHMM_RUN {
     label 'process_high'
 
     conda "${moduleDir}/environment.yml"
-    container 'docker.io/deeptmhmm/deeptmhmm:latest'
+    container 'docker.io/deeptmhmm/deeptmhmm@sha256:e527883fd2114007c6208c3d764fece40016cc95e209eab93016644c3e7ccb16'
 
     input:
     path aa_fasta
@@ -13,7 +13,7 @@ process DEEPTMHMM_RUN {
     path "deeptmhmm/deeptmhmm_regions_isar.tsv", emit: results
     path "deeptmhmm/predicted_topologies.3line", emit: raw
     path "deeptmhmm/deeptmhmm.log", emit: log
-    tuple val("${task.process}"), val('deeptmhmm'), val('latest'), emit: versions_deeptmhmm, topic: versions
+    tuple val("${task.process}"), val('deeptmhmm'), val('sha256:e527883fd211'), emit: versions_deeptmhmm, topic: versions
 
     when:
     task.ext.when == null || task.ext.when

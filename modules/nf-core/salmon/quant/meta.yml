@@ -77,6 +77,14 @@ output:
           pattern: "*lib_format_counts.json"
           ontologies:
             - edam: http://edamontology.org/format_3464 # JSON
+  requested_lib_type:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "*_requested_lib_type.txt":
+          type: file
+          description: Salmon library type requested by the pipeline before automatic inference
+          pattern: "*_requested_lib_type.txt"
   versions_salmon:
     - - ${task.process}:
           type: string

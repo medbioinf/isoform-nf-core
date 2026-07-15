@@ -47,6 +47,8 @@ workflow ISOFORM_NF_CORE {
     quant_results  = ISOFORM.out.quant_results
     isar_results   = ISOFORM.out.isar_results
     isar_visualization_results = ISOFORM.out.isar_visualization_results
+    isar_contrast_summary_results = ISOFORM.out.isar_contrast_summary_results
+    go_enrichment_results = ISOFORM.out.go_enrichment_results
     pfam_prepare_results = ISOFORM.out.pfam_prepare_results
     pfam_scan_results = ISOFORM.out.pfam_scan_results
     pfam_import_results = ISOFORM.out.pfam_import_results
@@ -65,6 +67,7 @@ workflow ISOFORM_NF_CORE {
     deeploc2_import_results = ISOFORM.out.deeploc2_import_results
     annotated_switch_plot_results = ISOFORM.out.annotated_switch_plot_results
     multiqc_report = ISOFORM.out.multiqc_report // channel: /path/to/multiqc_report.html
+    versions = ISOFORM.out.versions
 }
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

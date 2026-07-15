@@ -1,0 +1,3 @@
+contrast,condition_1,condition_2,gene,gene_id,gene_name,min_isoform_switch_q_value,max_abs_dIF,significant_isoform_switch,n_isoforms_tested,qvalue_cutoff,dif_cutoff
+treated_vs_control,control,treated,G1SYM,G1,G1SYM,0.001,0.2,FALSE,2,0.05,0.1
+treated_vs_control,control,treated,G2,G2,,0.001,0.2,TRUE,2,0.05,0.1

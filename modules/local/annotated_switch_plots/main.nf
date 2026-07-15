@@ -33,6 +33,8 @@ process ANNOTATED_SWITCH_PLOTS {
         "${condition1}" \\
         "${condition2}" \\
         ${plotTopology} \\
+        ${params.isar_qvalue_cutoff} \\
+        ${params.isar_dif_cutoff} \\
         ${args}
     """
 

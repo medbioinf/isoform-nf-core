@@ -136,11 +136,11 @@ Current behavior:
 - `forward` maps to Salmon `SF` for single-end and `ISF` for paired-end.
 - `reverse` maps to Salmon `SR` for single-end and `ISR` for paired-end.
 - `unstranded` maps to Salmon `U` for single-end and `IU` for paired-end.
-- `auto` currently behaves like the unstranded defaults unless `--salmon_lib_type` is set.
+- `auto` maps to Salmon `A`, which makes Salmon infer the library type from the reads.
 
 ### `batch`
 
-The `batch` column is optional metadata.
+The `batch` column is an optional design covariate. When it has more than one level, the pipeline includes it in the IsoformSwitchAnalyzeR design so the condition test is adjusted for batch.
 
 A batch is a technical grouping that might affect measurements, such as:
 

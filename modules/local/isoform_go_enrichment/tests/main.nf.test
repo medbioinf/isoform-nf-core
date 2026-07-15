@@ -1,0 +1,33 @@
+nextflow_process {
+
+    name "Test Process ISOFORM_GO_ENRICHMENT"
+    script "../main.nf"
+    process "ISOFORM_GO_ENRICHMENT"
+    tag "modules"
+    tag "modules_local"
+    tag "go"
+
+    test("preserves same-isoform significance and identifier type") {
+
+        when {
+            process {
+                """
+                input[0] = Channel.value(file("${projectDir}/bin/run_go_enrichment.R", checkIfExists: true))
+                input[1] = Channel.value(file("${projectDir}/tests/fixtures/go_false_positive/isar", checkIfExists: true))
+                input[2] = Channel.value([])
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert process.success },
+                { assert path(process.out.input[0]).resolve('treated_vs_control_significant_genes.txt').text.trim().isEmpty() },
+                { assert path(process.out.input[0]).resolve('go_gene_scores.csv').text.contains('"G1SYM","G1","G1SYM",0.001,0.2,FALSE') },
+                { assert !path(process.out.input[0]).resolve('go_gene_scores.csv').text.contains(',G2,') },
+                { assert path(process.out.summary[0]).text.contains('requiring q-value and dIF thresholds on the same isoform') },
+                { assert path(process.out.summary[0]).text.contains('Excluded 1 gene rows lacking gene symbols') }
+            )
+        }
+    }
+}

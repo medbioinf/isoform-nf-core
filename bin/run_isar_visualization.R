@@ -11,18 +11,21 @@ usage <- paste(
     "--isar-dir isar_analysis",
     "--outdir isar_visualization",
     "[--top-n 10]",
+    "[--qvalue-cutoff 0.05]",
+    "[--dif-cutoff 0.1]",
     sep = "\n"
 )
 
 parse_args <- function(args) {
-    opts <- list(top_n = "10")
+    opts <- list(top_n = "10", qvalue_cutoff = "0.05", dif_cutoff = "0.1")
     i <- 1
     while (i <= length(args)) {
         key <- args[[i]]
         if (!startsWith(key, "--") || i == length(args)) {
             stop(usage, call. = FALSE)
         }
-        opts[[sub("^--", "", key)]] <- args[[i + 1]]
+        option_name <- gsub("-", "_", sub("^--", "", key), fixed = TRUE)
+        opts[[option_name]] <- args[[i + 1]]
         i <- i + 2
     }
     opts
@@ -51,9 +54,9 @@ safe_neg_log10 <- function(x) {
     -log10(pmax(x, floor_value, na.rm = TRUE))
 }
 
-q_label <- function(q) {
+q_label <- function(q, qvalue_cutoff) {
     q <- safe_num(q)
-    ifelse(is.na(q), "NA", ifelse(q < 0.001, "***", ifelse(q < 0.05, "*", "ns")))
+    ifelse(is.na(q), "NA", ifelse(q <= qvalue_cutoff, "significant", "ns"))
 }
 
 format_q <- function(q) {
@@ -101,18 +104,27 @@ write_no_switch_outputs <- function(outdir, notes) {
 }
 
 opts <- parse_args(args)
-required <- c("isar-dir", "outdir")
+required <- c("isar_dir", "outdir")
 missing <- required[!required %in% names(opts) | !nzchar(unlist(opts[required]))]
 if (length(missing) > 0) {
     stop(sprintf("Missing required arguments: %s\n%s", paste(missing, collapse = ", "), usage()), call. = FALSE)
 }
 
-isar_dir <- normalizePath(opts[["isar-dir"]], mustWork = TRUE)
+isar_dir <- normalizePath(opts$isar_dir, mustWork = TRUE)
 outdir <- opts$outdir
 top_n <- as.integer(opts$top_n)
+qvalue_cutoff <- as.numeric(opts$qvalue_cutoff)
+dif_cutoff <- as.numeric(opts$dif_cutoff)
 if (is.na(top_n) || top_n < 1) {
     stop("--top-n must be a positive integer", call. = FALSE)
 }
+if (is.na(qvalue_cutoff) || qvalue_cutoff <= 0 || qvalue_cutoff >= 1) {
+    stop("--qvalue-cutoff must be between 0 and 1", call. = FALSE)
+}
+if (is.na(dif_cutoff) || dif_cutoff < 0 || dif_cutoff > 1) {
+    stop("--dif-cutoff must be between 0 and 1 inclusive", call. = FALSE)
+}
+cutoff_description <- sprintf("q <= %s and |dIF| >= %s", format(qvalue_cutoff), format(dif_cutoff))
 
 dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
 
@@ -166,10 +178,10 @@ has_isoform_q_values <- any(!is.na(features$isoform_switch_q_value))
 has_gene_q_values <- any(!is.na(features$gene_switch_q_value))
 has_statistical_q_values <- has_isoform_q_values || has_gene_q_values
 features$neg_log10_q <- safe_neg_log10(features$isoform_switch_q_value)
-features$significance <- q_label(features$isoform_switch_q_value)
+features$significance <- q_label(features$isoform_switch_q_value, qvalue_cutoff)
 features$is_significant_switch <- !is.na(features$isoform_switch_q_value) &
-    features$isoform_switch_q_value < 0.05 &
-    abs(features$dIF) >= 0.1
+    features$isoform_switch_q_value <= qvalue_cutoff &
+    abs(features$dIF) >= dif_cutoff
 features$direction <- ifelse(
     is.na(features$dIF) | features$dIF == 0,
     "unchanged",
@@ -342,13 +354,13 @@ top_volcano_labels$label <- ifelse(!is.na(top_volcano_labels$gene_name) & nzchar
 if (has_isoform_q_values) {
     volcano <- ggplot(features, aes(x = dIF, y = neg_log10_q)) +
         geom_point(aes(color = is_significant_switch), alpha = 0.65, size = 1.5) +
-        geom_vline(xintercept = c(-0.1, 0.1), linetype = "dashed", color = "grey55", linewidth = 0.35) +
-        geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "grey55", linewidth = 0.35) +
+        geom_vline(xintercept = c(-dif_cutoff, dif_cutoff), linetype = "dashed", color = "grey55", linewidth = 0.35) +
+        geom_hline(yintercept = -log10(qvalue_cutoff), linetype = "dashed", color = "grey55", linewidth = 0.35) +
         geom_text(data = top_volcano_labels, aes(label = label), check_overlap = TRUE, vjust = -0.7, size = 3, color = "grey20") +
-        scale_color_manual(values = c("TRUE" = "#D55E00", "FALSE" = "grey65"), labels = c("TRUE" = "q < 0.05 and |dIF| >= 0.1", "FALSE" = "other"), name = "Switch candidate") +
+        scale_color_manual(values = c("TRUE" = "#D55E00", "FALSE" = "grey65"), labels = c("TRUE" = cutoff_description, "FALSE" = "other"), name = "Switch candidate") +
         labs(
             title = "Isoform Switch Effect Size vs Statistical Support",
-            subtitle = paste("Each point is one isoform; dashed lines show q = 0.05 and |dIF| = 0.1", volcano_direction_label, sep = "\n"),
+            subtitle = paste(sprintf("Each point is one isoform; dashed lines show %s", cutoff_description), volcano_direction_label, sep = "\n"),
             x = "dIF: change in isoform fraction (condition 2 - condition 1)",
             y = expression(-log[10]("q-value"))
         ) +
@@ -390,14 +402,14 @@ if (nrow(ptc_data) > 0) {
     write.csv(ptc_summary, file.path(outdir, "ptc_switch_summary.csv"), row.names = FALSE)
     ptc_plot <- ggplot(ptc_summary, aes(x = direction, y = n, fill = PTC_status)) +
         geom_col(position = "stack") +
-        labs(title = "PTC Status Among Significant Isoform Switch Candidates", subtitle = "Significant means q < 0.05 and |dIF| >= 0.1", x = NULL, y = "Number of isoforms", fill = NULL) +
+        labs(title = "PTC Status Among Significant Isoform Switch Candidates", subtitle = sprintf("Significant means %s", cutoff_description), x = NULL, y = "Number of isoforms", fill = NULL) +
         theme_bw(base_size = 12) +
         theme(axis.text.x = element_text(angle = 20, hjust = 1), legend.position = "bottom")
     ggsave(file.path(outdir, "ptc_switch_summary.png"), ptc_plot, width = 8, height = 5, dpi = 180)
     ggsave(file.path(outdir, "ptc_switch_summary.pdf"), ptc_plot, width = 8, height = 5)
 } else {
     write_empty_csv(file.path(outdir, "ptc_switch_summary.csv"), c("PTC_status", "direction", "n"))
-    writeLines("No isoforms passed q < 0.05 and |dIF| >= 0.1, so no PTC summary plot was written.", file.path(outdir, "ptc_switch_summary.txt"))
+    writeLines(sprintf("No isoforms passed %s, so no PTC summary plot was written.", cutoff_description), file.path(outdir, "ptc_switch_summary.txt"))
 }
 
 usage_pdf <- file.path(outdir, "top_gene_isoform_usage.pdf")
@@ -454,7 +466,7 @@ writeLines(
         sprintf("Isoforms in feature table: %d", nrow(features)),
         sprintf("Genes in feature table: %d", length(unique(features$gene_id))),
         sprintf("Statistical q-values available: %s", ifelse(has_statistical_q_values, "yes", "no")),
-        sprintf("Isoforms passing q < 0.05 and abs(dIF) >= 0.1: %d", sum(features$is_significant_switch, na.rm = TRUE)),
+        sprintf("Isoforms passing %s: %d", cutoff_description, sum(features$is_significant_switch, na.rm = TRUE)),
         sprintf("Top gene-comparison units plotted: %d", nrow(top_units)),
         sprintf("Official switchPlot pages written: %d", switch_plots_written)
     ),

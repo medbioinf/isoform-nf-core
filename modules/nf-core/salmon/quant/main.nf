@@ -19,6 +19,7 @@ process SALMON_QUANT {
     tuple val(meta), path("${prefix}"), emit: results
     tuple val(meta), path("*info.json"), emit: json_info, optional: true
     tuple val(meta), path("*lib_format_counts.json"), emit: lib_format_counts, optional: true
+    tuple val(meta), path("*_requested_lib_type.txt"), emit: requested_lib_type
     tuple val("${task.process}"), val('salmon'), eval('salmon --version | sed -e "s/salmon //g"'), topic: versions, emit: versions_salmon
 
     when:
@@ -66,12 +67,17 @@ process SALMON_QUANT {
         }
     }
     else {
-        strandedness = meta.single_end ? 'U' : 'IU'
-        if (meta.strandedness == 'forward') {
+        if (meta.strandedness == 'unstranded') {
+            strandedness = meta.single_end ? 'U' : 'IU'
+        }
+        else if (meta.strandedness == 'forward') {
             strandedness = meta.single_end ? 'SF' : 'ISF'
         }
         else if (meta.strandedness == 'reverse') {
             strandedness = meta.single_end ? 'SR' : 'ISR'
+        }
+        else if (meta.strandedness != 'auto') {
+            log.info("[Salmon Quant] Unknown samplesheet strandedness '${meta.strandedness}', defaulting to auto-detection with '--libType=A'.")
         }
     }
     """
@@ -90,6 +96,7 @@ process SALMON_QUANT {
     if [ -f ${prefix}/lib_format_counts.json ]; then
         cp ${prefix}/lib_format_counts.json "${prefix}_lib_format_counts.json"
     fi
+    printf '%s\n' '${strandedness}' > "${prefix}_requested_lib_type.txt"
     """
 
     stub:
@@ -98,5 +105,6 @@ process SALMON_QUANT {
     mkdir ${prefix}
     touch ${prefix}_meta_info.json
     touch ${prefix}_lib_format_counts.json
+    touch ${prefix}_requested_lib_type.txt
     """
 }

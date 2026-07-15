@@ -93,6 +93,7 @@ If the samplesheet contains multiple rows with the same `sample` value, the pipe
   - `quant.genes.sf`: gene-level abundance estimates generated using `--gtf`.
   - `cmd_info.json`, `lib_format_counts.json` and `aux_info/`: Salmon run metadata and library-format information.
 - `salmon/*_meta_info.json` and `salmon/*_lib_format_counts.json`: selected Salmon metadata files copied to the top-level Salmon output directory for easier MultiQC parsing.
+- `salmon/*_requested_lib_type.txt`: the library type requested by the pipeline (`A` records true Salmon automatic inference); the inferred type remains available in `*_lib_format_counts.json`.
 
 </details>
 

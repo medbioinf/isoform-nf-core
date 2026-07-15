@@ -85,7 +85,7 @@ CONTROL_REP1,control,1,SRR000001,auto,batch1
 TREATMENT_REP1,treatment,1,SRR000002,auto,batch1
 ```
 
-Multiple runs for the same biological sample can be represented as multiple rows with the same `sample`, `condition`, `replicate`, `strandedness`, and `batch` values. The pipeline downloads each run with `prefetch`, converts it with `fasterq-dump`, compresses the FASTQs, auto-detects single-end versus paired-end output, and then continues through the same FASTQ path as normal samplesheet input.
+Multiple runs for the same biological sample can be represented as multiple rows with the same `sample`, `condition`, `replicate`, `strandedness`, and `batch` values. The pipeline downloads each run with `prefetch`, converts it with `fasterq-dump`, compresses the FASTQs, auto-detects single-end versus paired-end output, and regroups all runs by biological sample before continuing through the same FASTQ path as normal samplesheet input. Runs are ordered deterministically by accession before concatenation; for paired-end data, R1 and R2 files remain paired in that order. All runs assigned to one sample must have the same endedness.
 
 This is intentionally a minimal SRA mode. It expects run accessions such as `SRR...`, `ERR...`, or `DRR...`; it does not yet infer metadata automatically from `GSE` or `GSM` accessions.
 

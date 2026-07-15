@@ -393,6 +393,7 @@ If `--salmon_lib_type` is set and valid, it uses that directly.
 
 Otherwise:
 
+- samplesheet `auto` becomes Salmon `A` for automatic inference
 - single-end unstranded defaults to `U`
 - paired-end unstranded defaults to `IU`
 - single-end forward stranded becomes `SF`

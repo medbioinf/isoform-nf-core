@@ -1,0 +1,5 @@
+sample,condition,replicate,fastq_1,fastq_2,strandedness,batch
+CONTROL_REP1,control,1,tests/fixtures/reads/control_rep1_paired_R1.fastq.gz,tests/fixtures/reads/control_rep1_paired_R2.fastq.gz,auto,batch1
+CONTROL_REP2,control,2,tests/fixtures/reads/control_rep2_paired_R1.fastq.gz,tests/fixtures/reads/control_rep2_paired_R2.fastq.gz,auto,batch2
+TREATED_REP1,treated,1,tests/fixtures/reads/treated_rep1_paired_R1.fastq.gz,tests/fixtures/reads/treated_rep1_paired_R2.fastq.gz,auto,batch1
+TREATED_REP2,treated,2,tests/fixtures/reads/treated_rep2_paired_R1.fastq.gz,tests/fixtures/reads/treated_rep2_paired_R2.fastq.gz,auto,batch2

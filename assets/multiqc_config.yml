@@ -9,6 +9,9 @@ report_section_order:
   "Anton-Bch-isoform-nf-core-summary":
     order: -1002
 
-export_plots: true
+# MultiQC's optional static plot exporter currently fails on RGB color values in
+# the FastQC status heatmap. Keep the complete interactive HTML and data exports
+# while avoiding noisy, incomplete flat-plot output.
+export_plots: false
 
 disable_version_detection: true
