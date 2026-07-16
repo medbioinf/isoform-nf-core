@@ -187,6 +187,10 @@ workflow PIPELINE_COMPLETION {
 //
 // Check and validate pipeline parameters
 //
+def paramEnabled(value) {
+    return value instanceof String ? value.toBoolean() : value as Boolean
+}
+
 def validateInputParameters() {
     genomeExistsError()
     if (params.input && params.sra_manifest) {
@@ -200,6 +204,50 @@ def validateInputParameters() {
     }
     if (!params.gtf) {
         error("Please provide --gtf so Salmon can produce gene-level mappings and ISAR can map transcripts to genes")
+    }
+
+    if (paramEnabled(params.run_signalp)) {
+        if (!params.signalp_container) {
+            error("--run_signalp requires --signalp_container with a user-provided, appropriately licensed SignalP 5.0b container")
+        }
+        if (!workflow.containerEngine) {
+            error("--run_signalp requires a container-enabled profile because the licensed SignalP software is not available through the Conda environment")
+        }
+    }
+
+    if (paramEnabled(params.run_deeploc2)) {
+        if (!params.deeploc2_container) {
+            error("--run_deeploc2 requires --deeploc2_container with a user-provided, appropriately licensed DeepLoc 2.1 container")
+        }
+        if (!workflow.containerEngine) {
+            error("--run_deeploc2 requires a container-enabled profile because the licensed DeepLoc software is not available through the Conda environment")
+        }
+    }
+
+    if (!paramEnabled(params.run_isar)) {
+        def dependent_flags = [
+            'run_isar_visualization'    : paramEnabled(params.run_isar_visualization),
+            'run_isar_contrast_summary' : paramEnabled(params.run_isar_contrast_summary),
+            'run_go_enrichment'          : paramEnabled(params.run_go_enrichment),
+            'run_pfam_prepare'           : paramEnabled(params.run_pfam_prepare),
+            'run_pfam_visualization'     : paramEnabled(params.run_pfam_visualization),
+            'run_iupred2a'               : paramEnabled(params.run_iupred2a),
+            'run_signalp'                : paramEnabled(params.run_signalp),
+            'run_deeptmhmm'              : paramEnabled(params.run_deeptmhmm),
+            'run_deeploc2'               : paramEnabled(params.run_deeploc2),
+            'run_annotated_switch_plots' : paramEnabled(params.run_annotated_switch_plots),
+        ].findAll { name, enabled -> enabled }
+        def dependent_inputs = [
+            'pfam_results' : params.pfam_results,
+            'pfam_db'      : params.pfam_db,
+        ].findAll { name, value -> value }
+
+        if (dependent_flags || dependent_inputs) {
+            def disable_flags = dependent_flags.keySet().collect { name -> "--${name} false" }
+            def remove_inputs = dependent_inputs.keySet().collect { name -> "omit --${name}" }
+            def instructions = (disable_flags + remove_inputs).join(', ')
+            error("--run_isar false is incompatible with enabled ISAR-dependent options. To run Salmon-only preprocessing, also set or remove: ${instructions}")
+        }
     }
 }
 
@@ -255,11 +303,11 @@ def resolveInputFastq(path_value) {
         }
     }
 
-    for (candidate in candidates.unique()) {
-        def candidate_path = file(candidate)
-        if (candidate_path.exists()) {
-            return candidate_path
-        }
+    def resolved_candidate = candidates.unique()
+        .collect { candidate -> file(candidate) }
+        .find { candidate_path -> candidate_path.exists() }
+    if (resolved_candidate) {
+        return resolved_candidate
     }
 
     error("Please check input samplesheet -> FASTQ file does not exist: ${relative_value}")
@@ -350,27 +398,37 @@ def genomeExistsError() {
 // Generate methods description for MultiQC
 //
 def toolCitationText() {
-    def citation_text = [
-            "Tools used in the workflow included:",
-            "FastQC (Andrews 2010),",
-            "fastp (Chen et al. 2018),",
-            "Salmon (Patro et al. 2017),",
-            "MultiQC (Ewels et al. 2016)",
-            "."
-        ].join(' ').trim()
-
-    return citation_text
+    def tools = [
+        "FastQC (Andrews 2010)",
+        "fastp (Chen et al. 2018)",
+        "Salmon (Patro et al. 2017)",
+    ]
+    if (paramEnabled(params.run_isar)) tools << "IsoformSwitchAnalyzeR (Vitting-Seerup and Sandelin 2019)"
+    if (paramEnabled(params.run_go_enrichment)) tools << "WebGestaltR (Liao et al. 2019)"
+    if (paramEnabled(params.run_pfam_prepare) || params.pfam_results || params.pfam_db) tools << "Pfam (Mistry et al. 2021)"
+    if (paramEnabled(params.run_iupred2a)) tools << "IUPred2A (Meszaros et al. 2018)"
+    if (paramEnabled(params.run_signalp)) tools << "SignalP 5.0 (Almagro Armenteros et al. 2019)"
+    if (paramEnabled(params.run_deeptmhmm)) tools << "DeepTMHMM (Hallgren et al. 2022)"
+    if (paramEnabled(params.run_deeploc2)) tools << "DeepLoc 2.1 (Ødum et al. 2024)"
+    tools << "MultiQC (Ewels et al. 2016)"
+    return "Tools used in the workflow included: ${tools.join(', ')}."
 }
 
 def toolBibliographyText() {
-    def reference_text = [
-            "<li>Andrews S, (2010) FastQC, URL: https://www.bioinformatics.babraham.ac.uk/projects/fastqc/).</li>",
-            "<li>Chen S, Zhou Y, Chen Y, Gu J. (2018) fastp: an ultra-fast all-in-one FASTQ preprocessor. Bioinformatics. doi: 10.1093/bioinformatics/bty560.</li>",
-            "<li>Patro R, Duggal G, Love MI, Irizarry RA, Kingsford C. (2017) Salmon provides fast and bias-aware quantification of transcript expression. Nat Methods. doi: 10.1038/nmeth.4197.</li>",
-            "<li>Ewels, P., Magnusson, M., Lundin, S., & Käller, M. (2016). MultiQC: summarize analysis results for multiple tools and samples in a single report. Bioinformatics , 32(19), 3047–3048. doi: /10.1093/bioinformatics/btw354</li>"
-        ].join(' ').trim()
-
-    return reference_text
+    def references = [
+        "<li>Andrews S. (2010) FastQC. https://www.bioinformatics.babraham.ac.uk/projects/fastqc/.</li>",
+        "<li>Chen S, Zhou Y, Chen Y, Gu J. (2018) fastp: an ultra-fast all-in-one FASTQ preprocessor. Bioinformatics. doi: 10.1093/bioinformatics/bty560.</li>",
+        "<li>Patro R, Duggal G, Love MI, Irizarry RA, Kingsford C. (2017) Salmon provides fast and bias-aware quantification of transcript expression. Nat Methods. doi: 10.1038/nmeth.4197.</li>",
+    ]
+    if (paramEnabled(params.run_isar)) references << "<li>Vitting-Seerup K, Sandelin A. (2019) IsoformSwitchAnalyzeR: analysis of changes in genome-wide patterns of alternative isoform usage and its functional consequences. Mol Cancer Res. doi: 10.1158/1541-7786.MCR-18-0262.</li>"
+    if (paramEnabled(params.run_go_enrichment)) references << "<li>Liao Y, Wang J, Jaehnig EJ, Shi Z, Zhang B. (2019) WebGestalt 2019: gene set analysis toolkit with revamped UIs and APIs. Nucleic Acids Res. doi: 10.1093/nar/gkz401.</li>"
+    if (paramEnabled(params.run_pfam_prepare) || params.pfam_results || params.pfam_db) references << "<li>Mistry J, Chuguransky S, Williams L, et al. (2021) Pfam: The protein families database in 2021. Nucleic Acids Res. doi: 10.1093/nar/gkaa913.</li>"
+    if (paramEnabled(params.run_iupred2a)) references << "<li>Meszaros B, Erdos G, Dosztanyi Z. (2018) IUPred2A: context-dependent prediction of protein disorder. Nucleic Acids Res. doi: 10.1093/nar/gky384.</li>"
+    if (paramEnabled(params.run_signalp)) references << "<li>Almagro Armenteros JJ, et al. (2019) SignalP 5.0 improves signal peptide predictions using deep neural networks. Nat Biotechnol. doi: 10.1038/s41587-019-0036-z.</li>"
+    if (paramEnabled(params.run_deeptmhmm)) references << "<li>Hallgren J, et al. (2022) DeepTMHMM predicts alpha and beta transmembrane proteins using deep neural networks. bioRxiv. doi: 10.1101/2022.04.08.487609.</li>"
+    if (paramEnabled(params.run_deeploc2)) references << "<li>Ødum MT, et al. (2024) DeepLoc 2.1: multi-label membrane protein type prediction using protein language models. Nucleic Acids Res. doi: 10.1093/nar/gkae237.</li>"
+    references << "<li>Ewels P, Magnusson M, Lundin S, Kaller M. (2016) MultiQC: summarize analysis results for multiple tools and samples in a single report. Bioinformatics. doi: 10.1093/bioinformatics/btw354.</li>"
+    return references.join(' ').trim()
 }
 
 def methodsDescriptionText(mqc_methods_yaml) {

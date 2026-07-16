@@ -1,0 +1,44 @@
+{
+    "multi-run SRA accessions are regrouped by biological sample - stub": {
+        "content": [
+            {
+                "CAT_FASTQ": {
+                    "cat": 9.5
+                },
+                "FASTP": {
+                    "fastp": "1.1.0"
+                },
+                "FASTQC": {
+                    "fastqc": "0.12.1"
+                },
+                "FETCH_SRA_FASTQ": {
+                    "pigz": 2.8,
+                    "sratools": "3.2.1"
+                },
+                "ISAR_ANALYSIS": {
+                    "bioconductor-isoformswitchanalyzer": "2.6.0"
+                },
+                "ISAR_CONTRAST_SUMMARY": {
+                    "r-ggplot2": "3.5.1"
+                },
+                "ISAR_VISUALIZATION": {
+                    "r-ggplot2": "3.5.1"
+                },
+                "SALMON_INDEX": {
+                    "salmon": "1.10.3"
+                },
+                "SALMON_QUANT": {
+                    "salmon": "1.10.3"
+                },
+                "Workflow": {
+                    "Anton-Bch/isoform-nf-core": "v1.0.0-beta.2"
+                }
+            }
+        ],
+        "timestamp": "2026-07-15T20:12:00.000000000",
+        "meta": {
+            "nf-test": "0.9.3",
+            "nextflow": "25.04.8"
+        }
+    }
+}

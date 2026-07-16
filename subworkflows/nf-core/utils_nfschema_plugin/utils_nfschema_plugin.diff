@@ -1,0 +1,29 @@
+Changes in component 'nf-core/utils_nfschema_plugin'
+'subworkflows/nf-core/utils_nfschema_plugin/meta.yml' is unchanged
+Changes in 'utils_nfschema_plugin/main.nf':
+--- subworkflows/nf-core/utils_nfschema_plugin/main.nf
++++ subworkflows/nf-core/utils_nfschema_plugin/main.nf
+@@ -36,9 +36,9 @@
+         if(parameters_schema) {
+             help_options << [parametersSchema: parameters_schema]
+         }
+-        log.info paramsHelp(
+-            help_options,
+-            params.help instanceof String ? params.help : "",
+-        )
++        // The v2 parser represents a bare `--help` flag as the string "true".
++        // Preserve named parameter queries while not querying a parameter named true.
++        help_parameter = params.help instanceof String && !(params.help.toLowerCase() in ['true', 'false']) ? params.help : ""
++        log.info paramsHelp(help_options, help_parameter)
+         exit 0
+     }
+@@ -71,4 +71,3 @@
+     emit:
+     dummy_emit = true
+ }
+-
+
+'subworkflows/nf-core/utils_nfschema_plugin/tests/nextflow.config' is unchanged
+'subworkflows/nf-core/utils_nfschema_plugin/tests/main.nf.test' is unchanged
+'subworkflows/nf-core/utils_nfschema_plugin/tests/nextflow_schema.json' is unchanged
+************************************************************

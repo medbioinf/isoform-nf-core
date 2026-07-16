@@ -196,8 +196,10 @@ run_isar_contrast_summary: true
 
 run_iupred2a: true
 run_signalp: true
+signalp_container: "your-private-registry/signalp:5.0b"
 run_deeptmhmm: true
 run_deeploc2: true
+deeploc2_container: "your-private-registry/deeploc:2.1"
 
 run_annotated_switch_plots: true
 annotated_switch_genes: "ZNRF3,PBX3,YEATS4"

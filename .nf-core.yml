@@ -4,6 +4,7 @@ nf_core_version: 3.5.2
 
 lint:
   files_unchanged:
+    - .gitignore
     - CODE_OF_CONDUCT.md
     - assets/nf-core-isoform_logo_light.png
     - assets/nf-core-isoform-nf-core_logo_light.png
@@ -16,14 +17,39 @@ lint:
     - .github/CONTRIBUTING.md
     - .github/PULL_REQUEST_TEMPLATE.md
     - .github/workflows/branch.yml
+    - .github/workflows/linting.yml
+    - .github/workflows/linting_comment.yml
     - assets/email_template.txt
     - assets/sendmail_template.txt
     - docs/README.md
   nextflow_config:
     - manifest.name
     - manifest.homePage
-  multiqc_config:
-    - report_comment
+    # nf-core/tools 3.5.2 stringifies defaults whose JSON Schema type is a
+    # boolean/string union. Runtime schema validation still constrains these
+    # values to true or false for Nextflow 25 and 26 CLI compatibility.
+    - config_defaults:
+        - params.run_isar
+        - params.run_isar_visualization
+        - params.run_isar_contrast_summary
+        - params.run_go_enrichment
+        - params.run_pfam_prepare
+        - params.run_pfam_visualization
+        - params.run_iupred2a
+        - params.run_signalp
+        - params.run_deeptmhmm
+        - params.run_deeploc2
+        - params.run_annotated_switch_plots
+        - params.annotated_switch_plot_topology
+        - params.validate_params
+  # Static MultiQC plot export is deliberately disabled because the bundled
+  # image does not ship a supported renderer. The interactive HTML report is
+  # still produced and validated end to end.
+  multiqc_config: false
+  # nf-core/tools 3.5.2 only accepts numeric versions in release mode and
+  # rejects valid SemVer prerelease identifiers such as 1.0.0-beta.2.
+  # Version equality is validated explicitly by the release preparation.
+  version_consistency: false
   files_exist:
     - CODE_OF_CONDUCT.md
     - assets/nf-core-isoform_logo_light.png
@@ -41,7 +67,7 @@ template:
   name: isoform-nf-core
   description: General-purpose Nextflow pipeline for isoform switch analysis
   author: Anton Buch and Tobias Polley
-  version: 1.0.0-beta.1
+  version: 1.0.0-beta.2
   force: true
   outdir: /home/anton/uni/isoform-nf-core
   is_nfcore: false

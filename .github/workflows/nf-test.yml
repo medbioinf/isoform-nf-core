@@ -18,7 +18,7 @@ concurrency:
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  NFT_VER: "0.9.3"
+  NFT_VER: "0.9.5"
   NFT_WORKDIR: "~"
   NXF_ANSI_LOG: false
   NXF_SINGULARITY_CACHEDIR: ${{ github.workspace }}/.singularity
@@ -105,7 +105,7 @@ jobs:
           if [[ "${{ steps.run_nf_test.outcome }}" == "failure" ]]; then
             echo "::error::Test with ${{ matrix.NXF_VER }} failed"
             # Add to workflow summary
-            echo "## ❌ Test failed: ${{ matrix.profile }} | ${{ matrix.NXF_VER }} | Shard ${{ matrix.shard }}/${{ env.TOTAL_SHARDS }}" >> $GITHUB_STEP_SUMMARY
+            echo "## ❌ Test failed: ${{ matrix.profile }} | ${{ matrix.NXF_VER }} | Shard ${{ matrix.shard }}/${{ env.TOTAL_SHARDS }}" >> "$GITHUB_STEP_SUMMARY"
             if [[ "${{ matrix.NXF_VER }}" == "latest-everything" ]]; then
               echo "::warning::Test with latest-everything failed but will not cause workflow failure. Please check if the error is expected or if it needs fixing."
             fi
@@ -134,8 +134,11 @@ jobs:
 
       - name: debug-print
         if: always()
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+          NEED_RESULTS_JSON: ${{ toJSON(needs.*.result) }}
         run: |
-          echo "::group::DEBUG: `needs` Contents"
-          echo "DEBUG: toJSON(needs) = ${{ toJSON(needs) }}"
-          echo "DEBUG: toJSON(needs.*.result) = ${{ toJSON(needs.*.result) }}"
+          echo "::group::DEBUG: needs Contents"
+          printf 'DEBUG: toJSON(needs) = %s\n' "$NEEDS_JSON"
+          printf 'DEBUG: toJSON(needs.*.result) = %s\n' "$NEED_RESULTS_JSON"
           echo "::endgroup::"

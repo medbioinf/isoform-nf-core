@@ -136,11 +136,11 @@ Current behavior:
 - `forward` maps to Salmon `SF` for single-end and `ISF` for paired-end.
 - `reverse` maps to Salmon `SR` for single-end and `ISR` for paired-end.
 - `unstranded` maps to Salmon `U` for single-end and `IU` for paired-end.
-- `auto` currently behaves like the unstranded defaults unless `--salmon_lib_type` is set.
+- `auto` maps to Salmon `A`, which makes Salmon infer the library type from the reads.
 
 ### `batch`
 
-The `batch` column is optional metadata.
+The `batch` column is an optional design covariate. When it has more than one level, the pipeline includes it in the IsoformSwitchAnalyzeR design so the condition test is adjusted for batch.
 
 A batch is a technical grouping that might affect measurements, such as:
 
@@ -552,11 +552,17 @@ false
 
 Controls whether the pipeline runs optional SignalP signal peptide annotation on significant isoform switch candidates.
 
-SignalP predicts signal peptides. A signal peptide is a short protein segment that can route a protein into the secretory pathway, where proteins may be secreted, inserted into membranes, or processed in membrane-related compartments.
+SignalP predicts N-terminal signal peptides. A positive prediction supports entry into the secretory pathway; it does not by itself establish final secretion, subcellular localization, or a membrane anchor.
 
 When enabled, the pipeline extracts amino-acid FASTA sequences from significant switch candidates, runs SignalP 5 in eukaryotic mode, and imports the result with `analyzeSignalP()`.
 
-SignalP has historically had more restrictive distribution/licensing expectations than fully open tools. The current implementation is reproducible when the configured container is available, but container suitability should be checked for the target environment.
+SignalP 5.0b is distributed under a restrictive DTU license. Enabling this branch requires a user-provisioned, appropriately licensed container and a container-enabled profile.
+
+### `--signalp_container`
+
+Default: unset.
+
+Required with `--run_signalp`. Provide a private/local SignalP 5.0b container reference or SIF that exposes a compatible `signalp` command. The pipeline does not redistribute or automatically download SignalP; prefer an immutable image digest or record the SIF checksum.
 
 ### `--signalp_top_n`
 

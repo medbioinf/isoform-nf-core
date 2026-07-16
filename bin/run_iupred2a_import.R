@@ -38,6 +38,27 @@ write_empty_csv <- function(path, columns) {
     write.csv(empty, path, row.names = FALSE)
 }
 
+has_predicted_iupred2a_region <- function(path, cutoff = 0.5) {
+    rows <- tryCatch(
+        utils::read.table(
+            path,
+            sep = "\t",
+            header = FALSE,
+            comment.char = ">",
+            stringsAsFactors = FALSE,
+            fill = TRUE,
+            quote = ""
+        ),
+        error = function(err) data.frame()
+    )
+    if (nrow(rows) == 0 || ncol(rows) < 4) {
+        return(FALSE)
+    }
+    iupred_scores <- suppressWarnings(as.numeric(rows[[3]]))
+    anchor_scores <- suppressWarnings(as.numeric(rows[[4]]))
+    any(iupred_scores >= cutoff | anchor_scores >= cutoff, na.rm = TRUE)
+}
+
 opts <- parse_args(args)
 required <- c("isar-dir", "iupred2a-results", "outdir")
 missing <- required[!required %in% names(opts) | !nzchar(unlist(opts[required]))]
@@ -73,10 +94,37 @@ message("Loading switchAnalyzeRlist: ", rds_path)
 switch_list <- readRDS(rds_path)
 
 message("Importing IUPred2A/ANCHOR2 results: ", iupred2a_result_file)
-switch_list <- analyzeIUPred2A(
-    switchAnalyzeRlist = switch_list,
-    pathToIUPred2AresultFile = iupred2a_result_file,
-    showProgress = FALSE
+has_importable_iupred_regions <- has_predicted_iupred2a_region(iupred2a_result_file)
+iupred2a_import_note <- NULL
+switch_list <- tryCatch(
+    analyzeIUPred2A(
+        switchAnalyzeRlist = switch_list,
+        pathToIUPred2AresultFile = iupred2a_result_file,
+        showProgress = FALSE
+    ),
+    error = function(err) {
+        empty_region_error <- grepl(
+            "replacement has 1 row, data has 0",
+            conditionMessage(err),
+            fixed = TRUE
+        )
+        if (!has_importable_iupred_regions || empty_region_error) {
+            reason <- if (empty_region_error) {
+                "IsoformSwitchAnalyzeR reported its known empty-region import error."
+            } else {
+                "The IUPred2A scores did not contain residues above the import cutoff."
+            }
+            iupred2a_import_note <<- paste(
+                "IsoformSwitchAnalyzeR::analyzeIUPred2A() could not extract any IDR/ANCHOR2 regions from the result file.",
+                reason,
+                "The ISAR object was passed through unchanged.",
+                sprintf("Original error: %s", conditionMessage(err))
+            )
+            message(iupred2a_import_note)
+            return(switch_list)
+        }
+        stop(err)
+    }
 )
 
 saveRDS(switch_list, file.path(outdir, "switchAnalyzeRlist_with_iupred2a.rds"))
@@ -141,9 +189,11 @@ notes <- c(
     sprintf("Input RDS: %s", basename(rds_path)),
     sprintf("IUPred2A result file: %s", iupred2a_result_file),
     sprintf("Isoforms in feature table: %d", nrow(features)),
+    sprintf("IUPred2A result contains residues above import cutoff: %s", ifelse(has_importable_iupred_regions, "yes", "no")),
     sprintf("IDR rows imported: %d", nrow(idr_rows)),
     sprintf("Unique isoforms with IDR rows: %d", length(annotated_isoform_ids)),
     sprintf("Isoforms with IDR_identified == yes: %d", sum(features$IDR_identified == "yes", na.rm = TRUE)),
+    if (!is.null(iupred2a_import_note)) sprintf("Import note: %s", iupred2a_import_note) else NULL,
     "",
     "Interpretation:",
     "IUPred2A predicts intrinsically disordered protein regions.",

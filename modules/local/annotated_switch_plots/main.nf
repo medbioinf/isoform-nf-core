@@ -22,7 +22,7 @@ process ANNOTATED_SWITCH_PLOTS {
     def genes = params.annotated_switch_genes ?: '-'
     def condition1 = params.annotated_switch_condition1 ?: ''
     def condition2 = params.annotated_switch_condition2 ?: ''
-    def plotTopology = params.annotated_switch_plot_topology ? 'true' : 'false'
+    def plotTopology = (params.annotated_switch_plot_topology instanceof String ? params.annotated_switch_plot_topology.toBoolean() : params.annotated_switch_plot_topology) ? 'true' : 'false'
     def args = task.ext.args ?: ''
     """
     Rscript ${plot_script} \\
@@ -33,6 +33,8 @@ process ANNOTATED_SWITCH_PLOTS {
         "${condition1}" \\
         "${condition2}" \\
         ${plotTopology} \\
+        ${params.isar_qvalue_cutoff} \\
+        ${params.isar_dif_cutoff} \\
         ${args}
     """
 

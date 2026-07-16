@@ -36,10 +36,10 @@ workflow UTILS_NFSCHEMA_PLUGIN {
         if(parameters_schema) {
             help_options << [parametersSchema: parameters_schema]
         }
-        log.info paramsHelp(
-            help_options,
-            params.help instanceof String ? params.help : "",
-        )
+        // The v2 parser represents a bare `--help` flag as the string "true".
+        // Preserve named parameter queries while not querying a parameter named true.
+        help_parameter = params.help instanceof String && !(params.help.toLowerCase() in ['true', 'false']) ? params.help : ""
+        log.info paramsHelp(help_options, help_parameter)
         exit 0
     }
 
@@ -71,4 +71,3 @@ workflow UTILS_NFSCHEMA_PLUGIN {
     emit:
     dummy_emit = true
 }
-

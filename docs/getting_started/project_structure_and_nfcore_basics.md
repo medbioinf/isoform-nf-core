@@ -150,8 +150,10 @@ For example, it defines:
 - `--run_pfam_prepare`
 - `--run_iupred2a`
 - `--run_signalp`
+- `--signalp_container`
 - `--run_deeptmhmm`
 - `--run_deeploc2`
+- `--deeploc2_container`
 - `--run_annotated_switch_plots`
 
 The schema is important because it is both documentation and validation. If a required reference file is missing, the pipeline can fail early with a helpful error instead of failing later inside Salmon or R.

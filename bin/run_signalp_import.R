@@ -141,7 +141,7 @@ notes <- c(
     sprintf("Isoforms with signal_peptide_identified == yes: %d", ifelse("signal_peptide_identified" %in% colnames(features), sum(features$signal_peptide_identified == "yes", na.rm = TRUE), 0)),
     "",
     "Interpretation:",
-    "SignalP predicts signal peptides: short protein segments that can route proteins into the secretory pathway.",
+    "SignalP predicts N-terminal signal peptides that support entry into the secretory pathway; this does not by itself establish final secretion, localization, or a membrane anchor.",
     "These annotations can be rendered by IsoformSwitchAnalyzeR::switchPlot() as signal peptide tracks."
 )
 

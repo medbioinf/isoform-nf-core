@@ -40,6 +40,26 @@ clean_ids <- function(ids) {
 
 safe_num <- function(x) suppressWarnings(as.numeric(x))
 
+strict_logical <- function(values, column_name) {
+    normalized <- tolower(trimws(as.character(values)))
+    result <- rep(NA, length(normalized))
+    result[normalized %in% c("true", "t", "1")] <- TRUE
+    result[normalized %in% c("false", "f", "0")] <- FALSE
+    invalid <- is.na(result)
+    if (any(invalid)) {
+        invalid_values <- unique(as.character(values[invalid]))
+        stop(
+            sprintf(
+                "Column '%s' contains missing or invalid logical values: %s",
+                column_name,
+                paste(invalid_values, collapse = ", ")
+            ),
+            call. = FALSE
+        )
+    }
+    result
+}
+
 safe_name <- function(x) {
     x <- gsub("[^A-Za-z0-9_.-]+", "_", x)
     x <- gsub("^_+|_+$", "", x)
@@ -160,8 +180,8 @@ reference_gene_file <- opts[["reference_gene_file"]]
 if (is.na(qvalue_cutoff) || qvalue_cutoff <= 0 || qvalue_cutoff >= 1) {
     stop("--qvalue-cutoff must be between 0 and 1", call. = FALSE)
 }
-if (is.na(dif_cutoff) || dif_cutoff < 0) {
-    stop("--dif-cutoff must be a non-negative number", call. = FALSE)
+if (is.na(dif_cutoff) || dif_cutoff < 0 || dif_cutoff > 1) {
+    stop("--dif-cutoff must be between 0 and 1 inclusive", call. = FALSE)
 }
 
 dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
@@ -191,6 +211,7 @@ required_cols <- c(
     "gene_name",
     "min_isoform_switch_q_value",
     "max_abs_dIF",
+    "significant_isoform_switch",
     "n_isoforms_tested"
 )
 missing_cols <- setdiff(required_cols, colnames(scores))
@@ -206,15 +227,48 @@ if (length(missing_cols) > 0) {
 scores$gene_id <- clean_ids(scores$gene_id)
 scores$gene_name <- clean_ids(scores$gene_name)
 use_symbols <- tolower(gene_id_type) %in% c("genesymbol", "gene_symbol", "symbol")
-scores$gene <- clean_ids(if (use_symbols) {
-    ifelse(!is.na(scores$gene_name), scores$gene_name, scores$gene_id)
-} else {
-    ifelse(!is.na(scores$gene_id), scores$gene_id, scores$gene_name)
-})
+scores$gene <- clean_ids(if (use_symbols) scores$gene_name else scores$gene_id)
+missing_requested_ids <- sum(is.na(scores$gene))
+if (missing_requested_ids > 0) {
+    requested_label <- if (use_symbols) "gene symbols" else sprintf("identifiers of type '%s'", gene_id_type)
+    notes <- c(
+        notes,
+        sprintf(
+            "Excluded %d gene rows lacking %s; identifiers of another type were not silently substituted.",
+            missing_requested_ids,
+            requested_label
+        )
+    )
+}
 scores$min_isoform_switch_q_value <- safe_num(scores$min_isoform_switch_q_value)
 scores$max_abs_dIF <- safe_num(scores$max_abs_dIF)
 scores$n_isoforms_tested <- as.integer(safe_num(scores$n_isoforms_tested))
-scores$significant_isoform_switch <- scores$min_isoform_switch_q_value <= qvalue_cutoff & scores$max_abs_dIF >= dif_cutoff
+scores$significant_isoform_switch <- strict_logical(scores$significant_isoform_switch, "significant_isoform_switch")
+
+if (nrow(scores) > 0 && all(c("qvalue_cutoff", "dif_cutoff") %in% colnames(scores))) {
+    source_qvalue_cutoffs <- unique(stats::na.omit(safe_num(scores$qvalue_cutoff)))
+    source_dif_cutoffs <- unique(stats::na.omit(safe_num(scores$dif_cutoff)))
+    cutoff_mismatch <- length(source_qvalue_cutoffs) != 1 ||
+        length(source_dif_cutoffs) != 1 ||
+        !isTRUE(all.equal(source_qvalue_cutoffs[[1]], qvalue_cutoff)) ||
+        !isTRUE(all.equal(source_dif_cutoffs[[1]], dif_cutoff))
+    if (cutoff_mismatch) {
+        stop(
+            paste0(
+                "The GO cutoffs do not match the cutoffs used to create the gene-level significance calls. ",
+                "Re-run the ISAR analysis with the requested cutoffs; aggregated minimum q-values and maximum dIF values ",
+                "cannot be combined because they may come from different isoforms."
+            ),
+            call. = FALSE
+        )
+    }
+} else if (nrow(scores) > 0) {
+    notes <- c(notes, "The score table lacks cutoff provenance; preserving its upstream per-isoform significance calls.")
+}
+notes <- c(
+    notes,
+    "Gene significance preserves the upstream call requiring q-value and dIF thresholds on the same isoform."
+)
 scores <- scores[!is.na(scores$gene) & !is.na(scores$min_isoform_switch_q_value) & !is.na(scores$max_abs_dIF), , drop = FALSE]
 write.csv(scores, file.path(go_input_dir, "go_gene_scores.csv"), row.names = FALSE)
 

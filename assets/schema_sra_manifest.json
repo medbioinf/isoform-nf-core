@@ -33,7 +33,7 @@
             "strandedness": {
                 "type": "string",
                 "enum": ["forward", "reverse", "unstranded", "auto"],
-                "errorMessage": "Strandedness must be provided and be one of 'auto', 'forward', 'reverse' or 'unstranded'",
+                "errorMessage": "Strandedness must be one of 'auto', 'forward', 'reverse' or 'unstranded'; 'auto' passes Salmon --libType A for inference",
                 "meta": ["strandedness"]
             },
             "batch": {

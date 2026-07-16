@@ -85,7 +85,7 @@ CONTROL_REP1,control,1,SRR000001,auto,batch1
 TREATMENT_REP1,treatment,1,SRR000002,auto,batch1
 ```
 
-Multiple runs for the same biological sample can be represented as multiple rows with the same `sample`, `condition`, `replicate`, `strandedness`, and `batch` values. The pipeline downloads each run with `prefetch`, converts it with `fasterq-dump`, compresses the FASTQs, auto-detects single-end versus paired-end output, and then continues through the same FASTQ path as normal samplesheet input.
+Multiple runs for the same biological sample can be represented as multiple rows with the same `sample`, `condition`, `replicate`, `strandedness`, and `batch` values. The pipeline downloads each run with `prefetch`, converts it with `fasterq-dump`, compresses the FASTQs, auto-detects single-end versus paired-end output, and regroups all runs by biological sample before continuing through the same FASTQ path as normal samplesheet input. Runs are ordered deterministically by accession before concatenation; for paired-end data, R1 and R2 files remain paired in that order. All runs assigned to one sample must have the same endedness.
 
 This is intentionally a minimal SRA mode. It expects run accessions such as `SRR...`, `ERR...`, or `DRR...`; it does not yet infer metadata automatically from `GSE` or `GSM` accessions.
 
@@ -133,9 +133,9 @@ Optional annotation modules can be enabled when you want biological interpretati
 
 - `--pfam_db` or `--pfam_results` adds protein-domain annotation.
 - `--run_iupred2a` adds intrinsically disordered region and ANCHOR2 predictions.
-- `--run_signalp` adds signal peptide predictions.
+- `--run_signalp` adds signal peptide predictions and requires a licensed user-supplied image via `--signalp_container` with a container-enabled profile.
 - `--run_deeptmhmm` adds transmembrane topology predictions.
-- `--run_deeploc2` adds subcellular localization predictions.
+- `--run_deeploc2` adds subcellular localization predictions and requires a licensed user-supplied image via `--deeploc2_container` with a container-enabled profile.
 - `--run_annotated_switch_plots` renders gene-level switch plots using the newest available annotation layers.
 
 These modules are optional because they add extra runtime, storage, and container or database requirements. For quick statistical runs, leave them disabled. For publication-style inspection of selected genes, enable the relevant annotation modules and optionally set `--annotated_switch_genes`.
@@ -184,10 +184,12 @@ pfam_visualization_top_n: 12
 run_iupred2a: false
 iupred2a_top_n: 25
 run_signalp: false
+signalp_container: null
 signalp_top_n: 25
 run_deeptmhmm: false
 deeptmhmm_top_n: 25
 run_deeploc2: false
+deeploc2_container: null
 deeploc2_top_n: 25
 run_annotated_switch_plots: false
 annotated_switch_top_n: 10

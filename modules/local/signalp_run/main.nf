@@ -3,7 +3,7 @@ process SIGNALP_RUN {
     label 'process_medium'
 
     conda "${moduleDir}/environment.yml"
-    container 'docker.io/btrspg/signalp:5.0b'
+    container params.signalp_container
 
     input:
     path aa_fasta
@@ -11,7 +11,7 @@ process SIGNALP_RUN {
     output:
     path "signalp/signalp5_summary.signalp5", emit: results
     path "signalp/signalp.log", emit: log
-    tuple val("${task.process}"), val('signalp'), val('5.0b'), emit: versions_signalp, topic: versions
+    tuple val("${task.process}"), val('signalp'), eval("export PATH=\"/opt/signalp/bin:\$PATH\"; signalp -V 2>/dev/null || printf 'user-supplied\\n'"), emit: versions_signalp, topic: versions
 
     when:
     task.ext.when == null || task.ext.when

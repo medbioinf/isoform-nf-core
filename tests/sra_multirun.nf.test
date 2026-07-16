@@ -1,0 +1,36 @@
+nextflow_pipeline {
+
+    name "Multi-run SRA samples"
+    script "../main.nf"
+    tag "pipeline"
+    tag "sra"
+
+    test("multi-run SRA accessions are regrouped by biological sample - stub") {
+
+        options "-stub"
+
+        when {
+            params {
+                input = null
+                sra_manifest = "$projectDir/tests/fixtures/sra_manifest_multirun.csv"
+                outdir = "$outputDir"
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert snapshot(removeNextflowVersion("$outputDir/pipeline_info/isoform_software_mqc_versions.yml")).match() },
+                { assert new File("$outputDir/cat/CONTROL_REP1.merged.fastq.gz").exists() },
+                { assert new File("$outputDir/cat/CONTROL_REP2.merged.fastq.gz").exists() },
+                { assert new File("$outputDir/cat/TREATED_REP1.merged.fastq.gz").exists() },
+                { assert new File("$outputDir/cat/TREATED_REP2.merged.fastq.gz").exists() },
+                { assert new File("$outputDir/salmon/CONTROL_REP1").isDirectory() },
+                { assert new File("$outputDir/salmon/CONTROL_REP2").isDirectory() },
+                { assert new File("$outputDir/salmon/TREATED_REP1").isDirectory() },
+                { assert new File("$outputDir/salmon/TREATED_REP2").isDirectory() },
+                { assert new File("$outputDir/isar/isar_analysis/design_matrix.csv").exists() }
+            )
+        }
+    }
+}

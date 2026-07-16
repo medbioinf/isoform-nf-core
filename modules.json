@@ -33,7 +33,8 @@
                     "salmon/quant": {
                         "branch": "master",
                         "git_sha": "1d26feac934b15ae5c4609bb059e19ea7ca86896",
-                        "installed_by": ["modules"]
+                        "installed_by": ["modules"],
+                        "patch": "modules/nf-core/salmon/quant/salmon-quant.diff"
                     }
                 }
             },
@@ -52,7 +53,8 @@
                     "utils_nfschema_plugin": {
                         "branch": "master",
                         "git_sha": "4b406a74dc0449c0401ed87d5bfff4252fd277fd",
-                        "installed_by": ["subworkflows"]
+                        "installed_by": ["subworkflows"],
+                        "patch": "subworkflows/nf-core/utils_nfschema_plugin/utils_nfschema_plugin.diff"
                     }
                 }
             }

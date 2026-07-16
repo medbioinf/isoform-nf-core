@@ -24,7 +24,7 @@ process PFAM_SCAN {
     """
     set -euo pipefail
 
-    db_dir="\$(readlink -f ${pfam_db})"
+    source_db_dir="\$(readlink -f ${pfam_db})"
     fasta="\$(readlink -f ${aa_fasta})"
 
     if [ ! -s "\$fasta" ]; then
@@ -33,16 +33,27 @@ process PFAM_SCAN {
         exit 0
     fi
 
-    if [ ! -f "\$db_dir/Pfam-A.hmm" ]; then
-        echo "Missing Pfam-A.hmm in: \$db_dir" >&2
+    if [ ! -f "\$source_db_dir/Pfam-A.hmm" ]; then
+        echo "Missing Pfam-A.hmm in: \$source_db_dir" >&2
         exit 1
     fi
 
-    if [ ! -f "\$db_dir/Pfam-A.hmm.h3f" ] || [ ! -f "\$db_dir/Pfam-A.hmm.h3i" ] || [ ! -f "\$db_dir/Pfam-A.hmm.h3m" ] || [ ! -f "\$db_dir/Pfam-A.hmm.h3p" ]; then
-        echo "Indexing Pfam-A.hmm with hmmpress" | tee pfam_scan.log
-        hmmpress "\$db_dir/Pfam-A.hmm" 2>&1 | tee -a pfam_scan.log
-    else
+    if [ -f "\$source_db_dir/Pfam-A.hmm.h3f" ] && [ -f "\$source_db_dir/Pfam-A.hmm.h3i" ] && [ -f "\$source_db_dir/Pfam-A.hmm.h3m" ] && [ -f "\$source_db_dir/Pfam-A.hmm.h3p" ]; then
+        db_dir="\$source_db_dir"
         echo "Using pre-indexed Pfam database: \$db_dir" > pfam_scan.log
+    else
+        # Never write hmmpress indexes into the supplied reference directory. Only
+        # the large HMM file is copied; ancillary database files remain symlinked.
+        db_dir="\$PWD/pfam_db_indexed"
+        mkdir -p "\$db_dir"
+        cp "\$source_db_dir/Pfam-A.hmm" "\$db_dir/Pfam-A.hmm"
+        find "\$source_db_dir" -mindepth 1 -maxdepth 1 \\\
+            ! -name 'Pfam-A.hmm' ! -name 'Pfam-A.hmm.h3f' \\\
+            ! -name 'Pfam-A.hmm.h3i' ! -name 'Pfam-A.hmm.h3m' \\\
+            ! -name 'Pfam-A.hmm.h3p' \\\
+            -exec ln -s {} "\$db_dir/" \\;
+        echo "Indexing a task-local copy of Pfam-A.hmm with hmmpress" | tee pfam_scan.log
+        hmmpress "\$db_dir/Pfam-A.hmm" 2>&1 | tee -a pfam_scan.log
     fi
 
     pfam_scan.pl \\
