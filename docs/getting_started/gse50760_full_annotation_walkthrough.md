@@ -1,6 +1,6 @@
 # End-To-End Run Guide: GSE50760 With All Annotations
 
-Last updated: 2026-07-05
+Last updated: 2026-07-17
 
 This guide shows how a researcher can run the current `dev` pipeline from a fresh working directory. It uses the GSE50760 validation subset as a realistic example: 4 primary colorectal cancer samples, 4 matched normal colon samples, and 4 liver metastasis samples. The run performs three pairwise contrasts in one workflow execution and enables all annotation modules except GO enrichment.
 
@@ -16,7 +16,7 @@ The enabled analysis includes:
 - annotated switch plots for selected genes
 - MultiQC summary report
 
-GO enrichment is intentionally excluded here because it is still being integrated separately.
+GO enrichment is intentionally excluded to keep this walkthrough focused on the annotation and visualization path.
 
 ## 1. Prepare The Machine
 
@@ -36,6 +36,30 @@ docker --version
 ```
 
 For long runs over SSH, use `tmux` or `screen` so the run continues after disconnects.
+
+### Prepare The Annotation Containers
+
+The Docker profile runs every tool in a container, but not every annotation module handles its container in the same way:
+
+| Module | What the user must provide |
+| --- | --- |
+| Pfam | The pipeline provides the scanning container. The user provides the Pfam database files downloaded in Section 3. |
+| IUPred2A | The pipeline specifies a default image. If that minimal image is incompatible with Nextflow task monitoring, provide a replacement with `--iupred2a_container`. |
+| DeepTMHMM | Nothing beyond a working Docker installation. The pipeline pins its container to an immutable image digest. |
+| SignalP 5.0b | A private or local container containing software obtained under terms suitable for the user's institution. |
+| DeepLoc 2.1 | A private or local container containing software obtained under terms suitable for the user's institution. |
+
+Docker downloads the pipeline-specified Pfam, IUPred2A, and DeepTMHMM images when they are first needed. Network access to the relevant registries is therefore required unless the images have already been cached. IUPred2A normally uses its default image; see [Prerequisites](prerequisites.md#optional-iupred2a-prerequisites) for the optional override when a runtime requires `ps` inside the container.
+
+SignalP and DeepLoc2 are different because their licenses restrict redistribution. The pipeline cannot provide public default images for them. Before starting this all-annotation walkthrough:
+
+1. Obtain SignalP 5.0b and DeepLoc 2.1 under licenses suitable for the intended use.
+2. Build or obtain compatible private container images that expose the expected `signalp` and `deeploc2` commands.
+3. Push the images to a private registry accessible from the compute machine, or otherwise make suitable local images available.
+4. Run `docker login REGISTRY` first if authentication is required.
+5. Replace both placeholder references in the parameter file below with the real image references.
+
+The values `your-private-registry/signalp:5.0b` and `your-private-registry/deeploc:2.1` are placeholders, not downloadable example images. The pipeline deliberately stops during parameter validation when either licensed module is enabled without its corresponding container parameter. See [Prerequisites](prerequisites.md#optional-signalp-prerequisites) for the detailed license and runtime notes.
 
 ## 2. Download The Pipeline
 
@@ -212,6 +236,8 @@ EOF
 ```
 
 Adjust the absolute reference paths if the files were downloaded somewhere else. The annotated switch plot settings above request gene-level plots for `ZNRF3`, `PBX3`, and `YEATS4` in the normal-colon versus primary-CRC comparison. The full ISAR analysis still evaluates all three contrasts from the contrast file.
+
+Replace `your-private-registry/signalp:5.0b` and `your-private-registry/deeploc:2.1` with the licensed images prepared above before launching the workflow. Do not run the example with the placeholder values unchanged.
 
 ## 6. Start The Run
 

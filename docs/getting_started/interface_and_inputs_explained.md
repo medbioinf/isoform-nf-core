@@ -1,6 +1,6 @@
 # Interface and Input Data Model Explained
 
-Last updated: 2026-06-02
+Last updated: 2026-07-20
 
 This document explains the user-facing interface of the pipeline: which files users provide, what each column means, how those inputs become Nextflow metadata, and how the parameters control the analysis.
 
@@ -15,18 +15,27 @@ For a reusable pipeline, the interface should be:
 - flexible enough to work for different datasets
 - stable enough that downstream code does not become fragile
 
-This pipeline currently supports two input modes:
+This pipeline supports three mutually exclusive input modes:
 
 - FASTQ mode with `--input`
 - SRA mode with `--sra_manifest`
+- precomputed Salmon mode with `--salmon_input`
 
-Both modes are converted internally into the same data structure:
+FASTQ and SRA inputs are converted internally into the same read structure:
 
 ```nextflow
 [ meta, reads ]
 ```
 
 where `meta` is sample metadata and `reads` are one or two FASTQ files.
+
+Precomputed Salmon input instead becomes:
+
+```nextflow
+[ meta, quant_dir ]
+```
+
+Only one input mode may be supplied in a run.
 
 ## Input Mode 1: FASTQ Samplesheet
 
@@ -149,7 +158,7 @@ A batch is a technical grouping that might affect measurements, such as:
 - library preparation batch
 - lab processing batch
 
-The current pipeline validates and carries the `batch` value, but the ISAR implementation does not yet model batch effects statistically. It is included because it is useful metadata and gives us room to support batch-aware analysis later.
+The pipeline validates and carries the `batch` value into the ISAR design. A batch column with more than one level is included as a covariate in the DEXSeq model. The pipeline stops early if the resulting model is not full rank, for example when batch and condition are completely confounded.
 
 ## Input Mode 2: SRA Manifest
 
@@ -213,6 +222,38 @@ It does not yet infer runs from higher-level accessions such as:
 - `SRP...`
 
 This is intentional for the current SRA mode. Resolving higher-level accessions into runs requires additional metadata fetching and more edge-case handling.
+
+## Input Mode 3: Precomputed Salmon Results
+
+Use this mode when transcript abundance has already been quantified with Salmon and each sample has a directory containing `quant.sf`.
+
+Command-line parameter:
+
+```bash
+--salmon_input salmon_input.csv
+```
+
+Example:
+
+```csv
+sample,condition,replicate,quant_dir,batch
+CONTROL_REP1,control,1,/data/salmon/CONTROL_REP1,batch1
+CONTROL_REP2,control,2,/data/salmon/CONTROL_REP2,batch1
+TREATED_REP1,treated,1,/data/salmon/TREATED_REP1,batch1
+TREATED_REP2,treated,2,/data/salmon/TREATED_REP2,batch1
+```
+
+The schema is defined in `assets/schema_salmon_input.json`. Required columns are `sample`, `condition`, `replicate`, and `quant_dir`; `batch` is optional.
+
+Each `quant_dir` must:
+
+- exist and contain `quant.sf`
+- have the same directory name as the corresponding `sample`
+- come from a Salmon index compatible with the supplied transcript FASTA and GTF
+
+Relative paths are resolved from the launch directory, repository directory, or the directory containing the Salmon input CSV. Absolute paths are recommended for runs launched from another directory.
+
+This mode starts at IsoformSwitchAnalyzeR. It deliberately skips SRA download, FastQC, FASTQ concatenation, fastp, Salmon indexing, and Salmon quantification. Therefore, the pipeline cannot assess read quality or repeat quantification choices from these inputs. Users should retain the QC reports, Salmon command metadata, and reference release from the original quantification. If `aux_info/meta_info.json` is present in a quantification directory, it is offered to MultiQC.
 
 ## Contrast File
 
@@ -532,6 +573,12 @@ IUPred2A predicts intrinsically disordered protein regions. These are flexible p
 
 When enabled, the pipeline extracts amino-acid FASTA sequences from significant switch candidates, runs IUPred2A, converts the output into the format expected by IsoformSwitchAnalyzeR, and imports the result with `analyzeIUPred2A()`.
 
+### `--iupred2a_container`
+
+Default: unset, which uses the module's public `btrspg/iupred2a:2a` image.
+
+Overrides the IUPred2A image for sites that need a compatible replacement. The image must provide `python3`, `/opt/iupred2a/iupred2a.py`, and `ps`; Nextflow uses `ps` while collecting task metrics.
+
 ### `--iupred2a_top_n`
 
 Default:
@@ -703,12 +750,18 @@ For SRA mode:
 6. `flatMap()` expands runs again so each SRA accession can be downloaded separately.
 7. The workflow emits `ch_sra_manifest`.
 
+For precomputed Salmon mode:
+
+1. `samplesheetToList()` reads `params.salmon_input`.
+2. `assets/schema_salmon_input.json` validates rows.
+3. `salmonRowToInput()` checks the directory name and `quant.sf`.
+4. The workflow emits `[meta, quant_dir]` tuples and bypasses read processing.
+
 ## Validation Rules
 
 The pipeline fails early if:
 
-- both `--input` and `--sra_manifest` are provided
-- neither `--input` nor `--sra_manifest` is provided
+- anything other than exactly one of `--input`, `--sra_manifest`, and `--salmon_input` is provided
 - `--transcript_fasta` is missing
 - `--gtf` is missing
 - repeated runs of the same sample mix single-end and paired-end data
@@ -724,7 +777,7 @@ The current reusable interface intentionally does not support every possible RNA
 Known limitations:
 
 - The statistical ISAR test path is pairwise. A contrast file can request multiple pairwise comparisons in one run, but each comparison is still case-versus-control.
-- Batch metadata is carried and validated but not yet modeled.
+- Batch and other valid metadata covariates are modeled when they vary independently of condition; a confounded design is rejected.
 - SRA mode requires run accessions and does not resolve `GSE` or `GSM` accessions automatically.
 - Novel isoform discovery is not part of the current workflow.
 - Long-read RNA-seq input is not part of the current workflow.

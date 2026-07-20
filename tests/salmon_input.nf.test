@@ -1,0 +1,32 @@
+nextflow_pipeline {
+
+    name "Precomputed Salmon input"
+    script "../main.nf"
+    tag "pipeline"
+    tag "salmon-input"
+
+    test("precomputed Salmon input bypasses read processing - stub") {
+
+        options "-stub"
+
+        when {
+            params {
+                input = null
+                sra_manifest = null
+                salmon_input = "$projectDir/tests/fixtures/salmon_input.csv"
+                outdir = "$outputDir"
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert !new File("$outputDir/fastqc").exists() },
+                { assert !new File("$outputDir/fastp").exists() },
+                { assert !new File("$outputDir/salmon").exists() },
+                { assert new File("$outputDir/isar/isar_analysis/design_matrix.csv").exists() },
+                { assert new File("$outputDir/multiqc/multiqc_report.html").exists() }
+            )
+        }
+    }
+}

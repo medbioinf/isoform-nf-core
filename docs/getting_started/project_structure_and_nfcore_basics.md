@@ -1,6 +1,6 @@
 # Project Structure and nf-core Basics
 
-Last updated: 2026-07-05
+Last updated: 2026-07-20
 
 This document explains how the repository is organized and how the current project fits into the usual Nextflow / nf-core style. It is written for readers who are still learning Nextflow, nf-core, and the biological context of the pipeline.
 
@@ -21,6 +21,7 @@ flowchart LR
     C --> D["Trim and clean reads with fastp"]
     D --> E["Build Salmon transcript index"]
     E --> F["Quantify transcript abundance with Salmon"]
+    P["Existing Salmon quantifications"] --> G
     F --> G["Import and test isoform switches with IsoformSwitchAnalyzeR"]
     G --> H["ISAR visualizations and contrast summaries"]
     G --> I["Optional functional annotations"]
@@ -93,11 +94,8 @@ This is the main analysis workflow.
 It wires together:
 
 - optional SRA download
-- FastQC
-- FASTQ concatenation
-- fastp
-- Salmon index
-- Salmon quantification
+- FastQC, FASTQ concatenation, fastp, and Salmon for read-based inputs
+- direct import of compatible precomputed Salmon results when `--salmon_input` is used
 - IsoformSwitchAnalyzeR
 - ISAR visualization and multi-contrast summaries
 - optional Pfam, IUPred2A, SignalP, DeepTMHMM, and DeepLoc2 annotation
@@ -113,6 +111,7 @@ This file defines pipeline defaults and profiles.
 Examples:
 
 - `params.input = null`
+- `params.salmon_input = null`
 - `params.run_isar = true`
 - `params.isar_dif_cutoff = 0.1`
 - `params.isar_qvalue_cutoff = 0.05`
@@ -136,6 +135,7 @@ For example, it defines:
 
 - `--input`
 - `--sra_manifest`
+- `--salmon_input`
 - `--contrasts`
 - `--transcript_fasta`
 - `--genome_fasta`
@@ -172,9 +172,11 @@ Important files:
 
 - `samplesheet.csv`: example FASTQ input.
 - `sra_manifest.csv`: example SRA input.
+- `salmon_input.csv`: example layout for existing Salmon results.
 - `contrasts.csv`: example contrast definition.
 - `schema_input.json`: validation schema for `--input`.
 - `schema_sra_manifest.json`: validation schema for `--sra_manifest`.
+- `schema_salmon_input.json`: validation schema for `--salmon_input`.
 - `schema_contrasts.json`: validation schema for `--contrasts`.
 - `multiqc_config.yml`: MultiQC configuration.
 - `methods_description_template.yml`: text that can appear in MultiQC reports.
@@ -276,7 +278,7 @@ The custom local helper subworkflow is:
 
 - `subworkflows/local/utils_nfcore_isoform_pipeline/main.nf`
 
-It handles initialization, parameter validation, samplesheet parsing, SRA manifest parsing, contrast validation, and completion summaries.
+It handles initialization, parameter validation, FASTQ/SRA/Salmon input parsing, contrast validation, and completion summaries.
 
 ### `tests/`
 
@@ -286,6 +288,7 @@ Important files:
 
 - `tests/default.nf.test`: nf-test definition.
 - `tests/fixtures/samplesheet.csv`: tiny FASTQ samplesheet.
+- `tests/fixtures/salmon_input.csv`: tiny precomputed-Salmon input description.
 - `tests/fixtures/contrasts.csv`: tiny contrast file.
 - `tests/fixtures/reference/`: tiny transcript, genome, and GTF files.
 - `tests/fixtures/reads/`: tiny gzipped FASTQ files.

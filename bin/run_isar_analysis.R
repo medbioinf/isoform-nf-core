@@ -199,7 +199,7 @@ build_design_matrix <- function(samplesheet) {
 
     technical_columns <- c(
         "sample", "condition", "replicate", "fastq_1", "fastq_2",
-        "strandedness", "run_accession", "sra_run"
+        "strandedness", "run_accession", "sra_run", "quant_dir"
     )
     candidate_covariates <- setdiff(colnames(samplesheet), technical_columns)
     if ("batch" %in% candidate_covariates) {
@@ -516,6 +516,7 @@ switch_list <- importRdata(
     comparisonsToMake = comparisons,
     detectUnwantedEffects = !has_explicit_covariates,
     ignoreAfterBar = TRUE,
+    ignoreAfterPeriod = TRUE,
     quiet = TRUE,
     showProgress = FALSE
 )

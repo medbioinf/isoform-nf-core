@@ -1,6 +1,6 @@
 # Workflow Implementation Walkthrough
 
-Last updated: 2026-07-05
+Last updated: 2026-07-20
 
 This document walks through the implementation from the Nextflow entry point to the final outputs. It explains what each workflow component does, which files it consumes, which files it emits, and why it exists.
 
@@ -32,6 +32,7 @@ This subworkflow handles all startup tasks:
 - validates user parameters against `nextflow_schema.json`
 - validates FASTQ samplesheets against `assets/schema_input.json`
 - validates SRA manifests against `assets/schema_sra_manifest.json`
+- validates precomputed Salmon inputs against `assets/schema_salmon_input.json`
 - validates contrasts against `assets/schema_contrasts.json`
 - converts input rows into Nextflow channels
 - emits the metadata CSV path for ISAR
@@ -41,7 +42,7 @@ This subworkflow handles all startup tasks:
 This is a small wrapper around the actual scientific workflow:
 
 ```nextflow
-ISOFORM(samplesheet, sra_manifest, metadata_file)
+ISOFORM(samplesheet, sra_manifest, salmon_input, metadata_file)
 ```
 
 It exposes these workflow channels:
@@ -98,11 +99,17 @@ include { ANNOTATED_SWITCH_PLOTS } from '../modules/local/annotated_switch_plots
 include { MULTIQC } from '../modules/nf-core/multiqc/main'
 ```
 
-The key design idea is:
+The key design idea for read-based inputs is:
 
 > Convert all inputs to FASTQ sample tuples as early as possible, run one shared quantification path, and then attach optional interpretation modules after IsoformSwitchAnalyzeR.
 
-This means FASTQ mode and SRA mode do not need separate QC, trimming, Salmon, or ISAR workflows.
+This means FASTQ mode and SRA mode do not need separate QC, trimming, Salmon, or ISAR workflows. Precomputed Salmon mode branches around the read-processing steps and joins the shared workflow immediately before ISAR. This avoids repeating quantification while keeping contrast handling, annotation, and visualization identical.
+
+## Input Branch: Precomputed Salmon Quantifications
+
+When `--salmon_input` is set, initialization emits `[meta, quant_dir]` tuples. Each directory is validated to exist, contain `quant.sf`, and use the sample name as its basename. The workflow assigns these tuples directly to `ch_quant_results` and does not invoke SRA download, FastQC, concatenation, fastp, `SALMON_INDEX`, or `SALMON_QUANT`.
+
+The original Salmon input CSV becomes the metadata file passed to ISAR. `quant_dir` is classified as a technical column, so the filesystem path cannot accidentally enter the statistical design as a covariate.
 
 ## Step 1: Optional SRA Download
 

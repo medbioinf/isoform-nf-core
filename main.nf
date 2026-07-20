@@ -49,6 +49,7 @@ workflow ISOFORM_NF_CORE {
     take:
     samplesheet   // channel: samplesheet read in from --input
     sra_manifest  // channel: SRA manifest read in from --sra_manifest
+    salmon_input  // channel: precomputed Salmon quantification directories
     metadata_file // path: original metadata CSV used by ISAR
 
     main:
@@ -59,6 +60,7 @@ workflow ISOFORM_NF_CORE {
     ISOFORM (
         samplesheet,
         sra_manifest,
+        salmon_input,
         metadata_file
     )
     emit:
@@ -107,6 +109,7 @@ workflow {
         params.outdir,
         params.input,
         params.sra_manifest,
+        params.salmon_input,
         helpRequested(params.help),
         cliBoolean(params.help_full),
         cliBoolean(params.show_hidden)
@@ -118,6 +121,7 @@ workflow {
     ISOFORM_NF_CORE (
         PIPELINE_INITIALISATION.out.samplesheet,
         PIPELINE_INITIALISATION.out.sra_manifest,
+        PIPELINE_INITIALISATION.out.salmon_input,
         PIPELINE_INITIALISATION.out.metadata_file
     )
     //

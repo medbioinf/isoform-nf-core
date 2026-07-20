@@ -3,7 +3,7 @@ process IUPRED2A_RUN {
     label 'process_medium'
 
     conda "${moduleDir}/environment.yml"
-    container 'docker.io/btrspg/iupred2a:2a'
+    container params.iupred2a_container ?: 'docker.io/btrspg/iupred2a:2a'
 
     input:
     path aa_fasta

@@ -34,6 +34,17 @@
                     "help_text": "Use this instead of `--input` to download public SRA runs before running the normal FASTQ-based pipeline. Required columns are `sample`, `condition`, `replicate`, `run_accession`, and `strandedness`; `batch` is optional.",
                     "fa_icon": "fas fa-cloud-download-alt"
                 },
+                "salmon_input": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "schema": "assets/schema_salmon_input.json",
+                    "mimetype": "text/csv",
+                    "pattern": "^\\S+\\.csv$",
+                    "description": "Optional CSV file describing precomputed Salmon quantification directories.",
+                    "help_text": "Use this instead of --input or --sra_manifest when quant.sf results already exist. Required columns are sample, condition, replicate, and quant_dir; batch is optional. Each quant_dir basename must match its sample name and contain quant.sf.",
+                    "fa_icon": "fas fa-folder-tree"
+                },
                 "sra_prefetch_max_size": {
                     "type": "string",
                     "default": "100G",
@@ -291,6 +302,11 @@
                     "default": false,
                     "description": "Run optional IUPred2A/ANCHOR2 disorder annotation on significant isoform switch candidates.",
                     "help_text": "When enabled, the pipeline extracts amino-acid sequences for significant switch candidates, runs IUPred2A with ANCHOR2, converts the output into the format expected by IsoformSwitchAnalyzeR, and imports IDR annotations with analyzeIUPred2A()."
+                },
+                "iupred2a_container": {
+                    "type": "string",
+                    "description": "Optional IUPred2A container image override.",
+                    "help_text": "Overrides the default IUPred2A image. The image must provide python3, /opt/iupred2a/iupred2a.py, and ps so Nextflow can collect task metrics."
                 },
                 "iupred2a_top_n": {
                     "type": "integer",

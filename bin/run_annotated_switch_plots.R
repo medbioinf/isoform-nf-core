@@ -110,11 +110,10 @@ features$abs_dIF <- abs(features$dIF)
 condition1 <- if (!is.na(condition1_arg) && nzchar(condition1_arg)) condition1_arg else features$condition_1[[1]]
 condition2 <- if (!is.na(condition2_arg) && nzchar(condition2_arg)) condition2_arg else features$condition_2[[1]]
 
-comparison_features <- features[
-    features$condition_1 == condition1 & features$condition_2 == condition2,
-    ,
-    drop = FALSE
-]
+matches_comparison <-
+    !is.na(features$condition_1) & features$condition_1 == condition1 &
+    !is.na(features$condition_2) & features$condition_2 == condition2
+comparison_features <- features[matches_comparison, , drop = FALSE]
 if (nrow(comparison_features) == 0) {
     stop(sprintf("No isoforms found for comparison %s vs %s.", condition1, condition2), call. = FALSE)
 }
@@ -124,8 +123,18 @@ if (!is.na(genes_arg) && nzchar(genes_arg) && genes_arg != "-") {
     genes_to_plot <- genes_to_plot[nzchar(genes_to_plot)]
 } else {
     gene_summary <- unique(comparison_features[, c("gene_id", "gene_name", "gene_switch_q_value"), drop = FALSE])
+    has_gene_identifier <-
+        (!is.na(gene_summary$gene_id) & nzchar(gene_summary$gene_id)) |
+        (!is.na(gene_summary$gene_name) & nzchar(gene_summary$gene_name))
+    gene_summary <- gene_summary[has_gene_identifier & !is.na(gene_summary$gene_switch_q_value), , drop = FALSE]
     gene_summary <- gene_summary[order(gene_summary$gene_switch_q_value), , drop = FALSE]
-    genes_to_plot <- head(gene_summary$gene_id, n_top)
+    gene_summary$plot_identifier <- ifelse(
+        !is.na(gene_summary$gene_id) & nzchar(gene_summary$gene_id),
+        gene_summary$gene_id,
+        gene_summary$gene_name
+    )
+    gene_summary <- gene_summary[!duplicated(gene_summary$plot_identifier), , drop = FALSE]
+    genes_to_plot <- head(gene_summary$plot_identifier, n_top)
 }
 
 gene_summary <- unique(comparison_features[, c("gene_id", "gene_name", "gene_switch_q_value"), drop = FALSE])
@@ -158,18 +167,19 @@ utils::write.csv(annotation_status, file.path(outdir, "annotation_status.csv"), 
 plot_records <- list()
 for (i in seq_along(genes_to_plot)) {
     gene <- genes_to_plot[[i]]
-    gene_rows <- comparison_features[
-        comparison_features$gene_id == gene | comparison_features$gene_name == gene,
-        ,
-        drop = FALSE
-    ]
+    matches_gene <-
+        (!is.na(comparison_features$gene_id) & comparison_features$gene_id == gene) |
+        (!is.na(comparison_features$gene_name) & comparison_features$gene_name == gene)
+    gene_rows <- comparison_features[matches_gene, , drop = FALSE]
     if (nrow(gene_rows) == 0) {
         warning("Skipping gene not found in comparison: ", gene)
         next
     }
 
-    gene_id <- gene_rows$gene_id[[1]]
-    gene_name <- gene_rows$gene_name[[1]]
+    gene_id_candidates <- gene_rows$gene_id[!is.na(gene_rows$gene_id) & nzchar(gene_rows$gene_id)]
+    gene_name_candidates <- gene_rows$gene_name[!is.na(gene_rows$gene_name) & nzchar(gene_rows$gene_name)]
+    gene_id <- if (length(gene_id_candidates) > 0) gene_id_candidates[[1]] else gene
+    gene_name <- if (length(gene_name_candidates) > 0) gene_name_candidates[[1]] else NA_character_
     label <- if (!is.na(gene_name) && nzchar(gene_name)) gene_name else gene_id
     file_prefix <- sprintf("%02d_%s_annotated_switch", i, safe_filename(label))
     pdf_path <- file.path(outdir, paste0(file_prefix, ".pdf"))

@@ -97,7 +97,7 @@ If the samplesheet contains multiple rows with the same `sample` value, the pipe
 
 </details>
 
-[Salmon](https://salmon.readthedocs.io/) estimates transcript abundance from the cleaned reads. These transcript-level estimates are the quantitative input for the isoform switch analysis.
+[Salmon](https://salmon.readthedocs.io/) estimates transcript abundance from the cleaned reads. These transcript-level estimates are the quantitative input for the isoform switch analysis. When `--salmon_input` is used, this entire pipeline stage is skipped and no new `salmon/` output is published; ISAR consumes the supplied quantification directories instead.
 
 ### IsoformSwitchAnalyzeR
 

@@ -1,0 +1,5 @@
+sample,condition,replicate,quant_dir,batch
+CONTROL_REP1,control,1,tests/fixtures/salmon/CONTROL_REP1,batch1
+CONTROL_REP2,control,2,tests/fixtures/salmon/CONTROL_REP2,batch1
+TREATED_REP1,treated,1,tests/fixtures/salmon/TREATED_REP1,batch1
+TREATED_REP2,treated,2,tests/fixtures/salmon/TREATED_REP2,batch1

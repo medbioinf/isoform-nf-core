@@ -1,0 +1,3 @@
+Name	Length	EffectiveLength	TPM	NumReads
+TX1	100	80	250000	5
+TX2	100	80	750000	15

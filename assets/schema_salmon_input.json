@@ -1,0 +1,43 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/Anton-Bch/isoform-nf-core/main/assets/schema_salmon_input.json",
+    "title": "Anton-Bch/isoform-nf-core pipeline - params.salmon_input schema",
+    "description": "Schema for precomputed Salmon quantification input",
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "sample": {
+                "type": "string",
+                "pattern": "^\\S+$",
+                "errorMessage": "Sample name must be provided and cannot contain spaces",
+                "meta": ["id"]
+            },
+            "condition": {
+                "type": "string",
+                "pattern": "^\\S+$",
+                "errorMessage": "Condition must be provided and cannot contain spaces",
+                "meta": ["condition"]
+            },
+            "replicate": {
+                "type": "integer",
+                "minimum": 1,
+                "errorMessage": "Replicate must be provided as a positive integer",
+                "meta": ["replicate"]
+            },
+            "quant_dir": {
+                "type": "string",
+                "format": "directory-path",
+                "pattern": "^\\S+$",
+                "errorMessage": "Salmon quantification directory must be provided and cannot contain spaces"
+            },
+            "batch": {
+                "type": "string",
+                "pattern": "^\\S*$",
+                "errorMessage": "Batch cannot contain spaces",
+                "meta": ["batch"]
+            }
+        },
+        "required": ["sample", "condition", "replicate", "quant_dir"]
+    }
+}

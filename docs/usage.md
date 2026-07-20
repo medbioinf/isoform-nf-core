@@ -119,11 +119,25 @@ nextflow run Anton-Bch/isoform-nf-core \
     -profile docker
 ```
 
+For existing Salmon results, replace the read input with `--salmon_input`:
+
+```bash
+nextflow run Anton-Bch/isoform-nf-core \
+    --salmon_input ./salmon_input.csv \
+    --contrasts ./contrasts.csv \
+    --transcript_fasta ./reference/transcripts.fa.gz \
+    --gtf ./reference/annotation.gtf.gz \
+    --outdir ./results \
+    -profile docker
+```
+
+The Salmon input CSV contains `sample`, `condition`, `replicate`, and `quant_dir`, with optional `batch`. This mode skips read QC, trimming, indexing, and quantification, so the supplied results and references must already be compatible.
+
 This will launch the pipeline with the `docker` configuration profile. Docker is the recommended runtime for this pipeline and is the default runtime used by the test suite. See below for more information about profiles.
 
-The current reusable path uses the transcript FASTA to build a Salmon index, the optional genome FASTA as decoy sequence for a more specific Salmon index, and the GTF to map transcript IDs back to genes. The transcript IDs should match between the transcript FASTA and GTF.
+For read-based input, the pipeline uses the transcript FASTA to build a Salmon index, the optional genome FASTA as decoy sequence for a more specific Salmon index, and the GTF to map transcript IDs back to genes. The transcript IDs should match between the transcript FASTA and GTF. Precomputed Salmon mode reuses the existing index results instead of building a new index.
 
-After Salmon quantification, the pipeline imports the transcript-level abundance estimates into `IsoformSwitchAnalyzeR`. If a contrast file is supplied, the pipeline runs the requested pairwise comparisons in one ISAR analysis when each contrast condition has at least two samples. If no contrast file is supplied, a two-condition dataset is tested as a single comparison. For very small smoke-test datasets, it still creates the `switchAnalyzeRlist` import object and records that statistical testing was skipped.
+After Salmon quantification, or directly from `--salmon_input`, the pipeline imports transcript-level abundance estimates into `IsoformSwitchAnalyzeR`. If a contrast file is supplied, the pipeline runs the requested pairwise comparisons in one ISAR analysis when each contrast condition has at least two samples. If no contrast file is supplied, a two-condition dataset is tested as a single comparison. For very small smoke-test datasets, it still creates the `switchAnalyzeRlist` import object and records that statistical testing was skipped.
 
 The pipeline also writes `isar/isar_contrast_summary/` by default. This directory contains a per-comparison significant-switch bar plot and an UpSet-style plot summarizing which significant isoform switches are shared across multiple contrasts.
 

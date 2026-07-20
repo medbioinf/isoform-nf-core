@@ -51,19 +51,32 @@ workflow ISOFORM {
     take:
     ch_fastq_samplesheet // channel: samplesheet read in from --input
     ch_sra_manifest      // channel: SRA manifest read in from --sra_manifest
+    ch_salmon_input      // channel: [ meta, path(salmon_quant_dir) ] from --salmon_input
     ch_metadata_file     // path: original metadata CSV used by ISAR
     main:
 
     ch_versions = channel.empty()
     ch_multiqc_files = channel.empty()
 
-    //
-    // MODULE: Optionally download SRA runs and normalize them to FASTQ tuples
-    //
-    FETCH_SRA_FASTQ (
-        ch_sra_manifest
-    )
-    ch_sra_reads = FETCH_SRA_FASTQ.out.reads
+    ch_transcript_fasta = channel.value(file(params.transcript_fasta, checkIfExists: true))
+    ch_gtf = channel.value(file(params.gtf, checkIfExists: true))
+    ch_quant_results = channel.empty()
+
+    if (params.salmon_input) {
+        ch_quant_results = ch_salmon_input
+        ch_multiqc_files = ch_multiqc_files.mix(
+            ch_salmon_input
+                .map { meta, quant_dir -> quant_dir.resolve('aux_info/meta_info.json') }
+                .filter { meta_info -> meta_info.exists() }
+        )
+    } else {
+        //
+        // MODULE: Optionally download SRA runs and normalize them to FASTQ tuples
+        //
+        FETCH_SRA_FASTQ (
+            ch_sra_manifest
+        )
+        ch_sra_reads = FETCH_SRA_FASTQ.out.reads
         .map { meta, reads ->
             def ordered_reads = (reads instanceof List ? reads : [reads]).sort { it.name }
             if (!(ordered_reads.size() in [1, 2])) {
@@ -90,64 +103,64 @@ workflow ISOFORM {
             def sample_reads = sorted_runs.collectMany { run_record -> run_record[1] }
             [ sample_meta, sample_reads ]
         }
-    ch_samplesheet = ch_fastq_samplesheet.mix(ch_sra_reads)
+        ch_samplesheet = ch_fastq_samplesheet.mix(ch_sra_reads)
 
     //
     // MODULE: Run FastQC
     //
-    FASTQC (
-        ch_samplesheet
-    )
-    ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]})
-    ch_versions = ch_versions.mix(FASTQC.out.versions.first())
+        FASTQC (
+            ch_samplesheet
+        )
+        ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]})
+        ch_versions = ch_versions.mix(FASTQC.out.versions.first())
 
     //
     // MODULE: Concatenate multiple sequencing runs per sample
     //
-    CAT_FASTQ (
-        ch_samplesheet
-    )
+        CAT_FASTQ (
+            ch_samplesheet
+        )
 
     //
     // MODULE: Trim adapters and low-quality sequence
     //
-    FASTP (
-        CAT_FASTQ.out.reads.map { meta, reads -> [ meta, reads, [] ] },
-        false,
-        false,
-        false
-    )
-    ch_multiqc_files = ch_multiqc_files.mix(FASTP.out.json.collect{it[1]})
-    ch_multiqc_files = ch_multiqc_files.mix(FASTP.out.html.collect{it[1]})
-    ch_multiqc_files = ch_multiqc_files.mix(FASTP.out.log.collect{it[1]})
+        FASTP (
+            CAT_FASTQ.out.reads.map { meta, reads -> [ meta, reads, [] ] },
+            false,
+            false,
+            false
+        )
+        ch_multiqc_files = ch_multiqc_files.mix(FASTP.out.json.collect{it[1]})
+        ch_multiqc_files = ch_multiqc_files.mix(FASTP.out.html.collect{it[1]})
+        ch_multiqc_files = ch_multiqc_files.mix(FASTP.out.log.collect{it[1]})
 
     //
     // MODULE: Build Salmon transcriptome index
     //
-    ch_genome_fasta = params.genome_fasta ?
-        channel.value(file(params.genome_fasta, checkIfExists: true)) :
-        channel.value([])
-    ch_transcript_fasta = channel.value(file(params.transcript_fasta, checkIfExists: true))
+        ch_genome_fasta = params.genome_fasta ?
+            channel.value(file(params.genome_fasta, checkIfExists: true)) :
+            channel.value([])
 
-    SALMON_INDEX (
-        ch_genome_fasta,
-        ch_transcript_fasta
-    )
+        SALMON_INDEX (
+            ch_genome_fasta,
+            ch_transcript_fasta
+        )
 
     //
     // MODULE: Quantify transcript abundance per sample
     //
-    ch_gtf = channel.value(file(params.gtf, checkIfExists: true))
-    SALMON_QUANT (
-        FASTP.out.reads,
-        SALMON_INDEX.out.index,
-        ch_gtf,
-        ch_transcript_fasta,
-        false,
-        params.salmon_lib_type ?: ''
-    )
-    ch_multiqc_files = ch_multiqc_files.mix(SALMON_QUANT.out.json_info.collect{it[1]})
-    ch_multiqc_files = ch_multiqc_files.mix(SALMON_QUANT.out.lib_format_counts.collect{it[1]})
+        SALMON_QUANT (
+            FASTP.out.reads,
+            SALMON_INDEX.out.index,
+            ch_gtf,
+            ch_transcript_fasta,
+            false,
+            params.salmon_lib_type ?: ''
+        )
+        ch_quant_results = SALMON_QUANT.out.results
+        ch_multiqc_files = ch_multiqc_files.mix(SALMON_QUANT.out.json_info.collect{it[1]})
+        ch_multiqc_files = ch_multiqc_files.mix(SALMON_QUANT.out.lib_format_counts.collect{it[1]})
+    }
 
     //
     // MODULE: Import Salmon quantifications into IsoformSwitchAnalyzeR
@@ -179,7 +192,7 @@ workflow ISOFORM {
         ch_contrasts = params.contrasts ?
             channel.value(file(params.contrasts, checkIfExists: true)) :
             channel.value([])
-        ch_quant_dirs = SALMON_QUANT.out.results.map { meta, quant_dir -> quant_dir }.collect()
+        ch_quant_dirs = ch_quant_results.map { meta, quant_dir -> quant_dir }.collect()
 
         ISAR_ANALYSIS (
             ch_analysis_script,
@@ -450,7 +463,7 @@ workflow ISOFORM {
     )
 
     emit:
-    quant_results  = SALMON_QUANT.out.results       // channel: [ meta, path(salmon_quant_dir) ]
+    quant_results  = ch_quant_results               // channel: [ meta, path(salmon_quant_dir) ]
     isar_results   = ch_isar_results                // channel: path(isar_analysis)
     isar_visualization_results = ch_isar_visualization_results // channel: path(isar_visualization)
     isar_contrast_summary_results = ch_isar_contrast_summary_results // channel: path(isar_contrast_summary)
