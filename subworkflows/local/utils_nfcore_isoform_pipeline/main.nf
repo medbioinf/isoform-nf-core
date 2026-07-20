@@ -204,6 +204,10 @@ def paramEnabled(value) {
 
 def validateInputParameters() {
     genomeExistsError()
+    def default_iupred2a_container = 'docker.io/btrspg/iupred2a@sha256:a3a5048a131ce41a2ea39260acd9d63bfe6d65c0de606633b86ccc4e862f2c9d'
+    if (paramEnabled(params.run_iupred2a) && params.iupred2a_container == default_iupred2a_container) {
+        log.warn "The default IUPred2A container does not provide ps. Nextflow's execution report, timeline, and trace are disabled for this run; scientific outputs, process logs, the DAG, and MultiQC remain available. Supply --iupred2a_container with a compatible image containing ps to retain full runtime reports."
+    }
     def input_modes = [params.input, params.sra_manifest, params.salmon_input].count { it }
     if (input_modes != 1) {
         error("Please provide exactly one of --input, --sra_manifest, or --salmon_input")

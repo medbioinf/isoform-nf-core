@@ -923,6 +923,7 @@ Issues discovered and fixed:
 - Version suffixes on Ensembl transcript identifiers could prevent matching between Salmon and the annotation. ISAR import now uses `ignoreAfterPeriod = TRUE` in addition to `ignoreAfterBar = TRUE`.
 - WebGestalt identifier errors were difficult to diagnose. GO enrichment now validates the selected identifier type against the selected organism before submitting enrichment calls.
 - The default IUPred2A image lacks `ps`. The new `--iupred2a_container` parameter allowed validation with a compatible VM-local image containing `procps`.
+- The public default is now pinned by immutable digest. When it is selected, the pipeline disables the execution report, timeline, and trace while retaining scientific outputs, logs, the DAG, and MultiQC. A compatible custom container automatically restores full runtime reporting.
 - Five annotated switch plots were initially emitted as `NA` placeholders although their gene mappings were present. R logical filters had allowed unrelated rows containing missing values into each gene subset. Comparison and gene matching are now explicitly missing-value-safe, and automatic ranking excludes candidates without usable identifiers.
 
 Focused corrected-plot validation:
@@ -937,6 +938,12 @@ Precomputed-input wiring check on 2026-07-20:
 - `nextflow config -profile test,docker` parsed successfully on the VM.
 - A Docker stub run using `tests/fixtures/salmon_input.csv` completed through ISAR visualization, contrast summary, and MultiQC.
 - The stub output correctly contained no `fastqc/`, `fastp/`, or `salmon/` directory, confirming that precomputed Salmon input bypasses read processing.
+
+IUPred2A default-container reporting check on 2026-07-20:
+
+- A Docker stub workflow with `--run_iupred2a` completed all 24 tasks using the pinned public default image.
+- The startup warning explained the reporting tradeoff. The result retained parameters, software versions, the pipeline DAG, process logs, MultiQC, and scientific stub outputs; it did not create an execution report, timeline, or trace.
+- A resumed stub workflow using the VM-local compatible image `docker.io/library/isoform-iupred2a:2a-procps` also completed. It created the execution report, timeline, trace, and DAG, confirming that `--iupred2a_container` automatically restores full runtime reporting.
 
 ## Current Minimum Checks Before Future Commits
 

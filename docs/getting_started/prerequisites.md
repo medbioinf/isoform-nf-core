@@ -270,15 +270,15 @@ IUPred2A annotation is optional and enabled with:
 
 It does not require a separate biological reference database. The pipeline extracts protein sequences from the ISAR object and runs IUPred2A/ANCHOR2 in a container.
 
-The main practical prerequisite is container availability. By default the module uses `btrspg/iupred2a:2a`. This third-party image is minimal and does not include `ps`, which some Nextflow execution and monitoring configurations require.
+The module uses the public IUPred2A image pinned to immutable digest `sha256:a3a5048a131ce41a2ea39260acd9d63bfe6d65c0de606633b86ccc4e862f2c9d`. This third-party image is minimal and does not include `ps`, which Nextflow uses to collect task resource metrics. For convenience, the pipeline automatically disables the Nextflow execution report, timeline, and trace when IUPred2A runs with this default image. Scientific outputs, process logs, the pipeline DAG, and MultiQC remain available.
 
-If the default image fails because `ps` is unavailable, supply a compatible replacement:
+To retain the full Nextflow runtime reports, supply a compatible replacement:
 
 ```bash
 --iupred2a_container registry.example.org/iupred2a:2a-with-procps
 ```
 
-The replacement must provide `python3`, `/opt/iupred2a/iupred2a.py`, and `ps`. Prefer a versioned image or immutable digest. This is a container-runtime requirement, not an additional biological reference database.
+The replacement must provide `python3`, `/opt/iupred2a/iupred2a.py`, and `ps`. Supplying it automatically re-enables the execution report, timeline, and trace. Prefer a versioned image or immutable digest. This is a container-runtime requirement, not an additional biological reference database.
 
 IUPred2A predicts intrinsically disordered regions. ANCHOR2 predicts disordered binding regions. These annotations help interpret whether an isoform switch may alter flexible protein regions or binding-related regions.
 

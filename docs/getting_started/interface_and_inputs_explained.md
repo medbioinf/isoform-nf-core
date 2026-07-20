@@ -575,9 +575,9 @@ When enabled, the pipeline extracts amino-acid FASTA sequences from significant 
 
 ### `--iupred2a_container`
 
-Default: unset, which uses the module's public `btrspg/iupred2a:2a` image.
+Default: the public IUPred2A image pinned to immutable digest `sha256:a3a5048a131ce41a2ea39260acd9d63bfe6d65c0de606633b86ccc4e862f2c9d`.
 
-Overrides the IUPred2A image for sites that need a compatible replacement. The image must provide `python3`, `/opt/iupred2a/iupred2a.py`, and `ps`; Nextflow uses `ps` while collecting task metrics.
+The default image lacks `ps`, so runs using it disable the Nextflow execution report, timeline, and trace while retaining scientific outputs, process logs, the DAG, and MultiQC. Override the image to retain full runtime reports. A replacement must provide `python3`, `/opt/iupred2a/iupred2a.py`, and `ps`.
 
 ### `--iupred2a_top_n`
 

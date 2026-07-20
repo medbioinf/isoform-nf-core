@@ -458,7 +458,7 @@ An isoform switch could add or remove disordered regions.
 
 Operational note:
 
-The current container is usable for the pipeline, but long-term public release should still review container provenance and runtime reporting behavior.
+The pinned default container produces the scientific predictions but lacks `ps`, which Nextflow uses for resource measurements. The pipeline therefore omits its execution report, timeline, and trace for these runs. A compatible custom container restores them.
 
 ### DeepTMHMM
 

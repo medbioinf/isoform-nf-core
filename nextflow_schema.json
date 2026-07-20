@@ -305,8 +305,9 @@
                 },
                 "iupred2a_container": {
                     "type": "string",
+                    "default": "docker.io/btrspg/iupred2a@sha256:a3a5048a131ce41a2ea39260acd9d63bfe6d65c0de606633b86ccc4e862f2c9d",
                     "description": "Optional IUPred2A container image override.",
-                    "help_text": "Overrides the default IUPred2A image. The image must provide python3, /opt/iupred2a/iupred2a.py, and ps so Nextflow can collect task metrics."
+                    "help_text": "The pinned default image provides IUPred2A but not ps, so the pipeline disables the Nextflow execution report, timeline, and trace when it is used. Override it with an image providing python3, /opt/iupred2a/iupred2a.py, and ps to retain full runtime reports."
                 },
                 "iupred2a_top_n": {
                     "type": "integer",

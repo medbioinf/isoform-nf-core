@@ -3,6 +3,12 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### `Changed`
+
+- Pinned the default IUPred2A image by digest and disabled Nextflow resource reports when that minimal image is selected; compatible custom images retain full reporting.
+
 ## v1.0.0-beta.2 - 2026-07-15
 
 Second beta release of Anton-Bch/isoform-nf-core, focused on scientific correctness, reproducibility, and release validation.
