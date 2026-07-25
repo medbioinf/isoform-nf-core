@@ -475,7 +475,7 @@ Default:
 10
 ```
 
-Controls how many top genes are used for visualization outputs such as top switching genes and per-gene isoform usage plots. In a multi-contrast run, the ranking and limit are applied independently to every comparison. Each comparison therefore receives its own volcano plot and up to this many top-gene outputs.
+Controls how many top genes are used for outputs such as top switching genes and per-gene isoform usage plots. It also controls how many of the most significant isoform points are labelled in each volcano plot. A gene can appear more than once among the volcano labels when several of its isoforms rank in the top set. In a multi-contrast run, all rankings and limits are applied independently to every comparison.
 
 ### `--run_isar_contrast_summary`
 

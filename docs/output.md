@@ -130,7 +130,7 @@ If the samplesheet contains multiple rows with the same `sample` value, the pipe
   - `comparison_visualizations.csv`: comparison names, condition pairs, output directories, and completion status.
   - `visualization_notes.txt`: run-level summary and explanation if plots were skipped.
   - `<comparison>/top_switch_plots.pdf`: official IsoformSwitchAnalyzeR `switchPlot()` pages for that comparison's top-ranked switching genes.
-  - `<comparison>/isoform_switch_volcano.png` / `.pdf`: isoform-level effect size versus statistical support for one comparison.
+  - `<comparison>/isoform_switch_volcano.png` / `.pdf`: isoform-level effect size versus statistical support for one comparison. Labels identify the top-N significant isoform points by q-value; repeated gene labels indicate that multiple isoforms from that gene are among the top points.
   - `<comparison>/top_switching_genes.png` / `.pdf`: top genes ranked within that comparison by gene-level switch q-value.
   - `<comparison>/top_gene_isoform_usage.pdf`: combined PDF with per-gene isoform usage plots for that comparison.
   - `<comparison>/top_gene_isoform_usage/*.png` / `.pdf`: individual per-gene isoform usage plots.

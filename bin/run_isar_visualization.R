@@ -458,30 +458,72 @@ comparison_pairs <- unique(features[, c("condition_1", "condition_2"), drop = FA
 comparison_pairs <- comparison_pairs[stats::complete.cases(comparison_pairs), , drop = FALSE]
 if (nrow(comparison_pairs) > 0) {
     volcano_direction_label <- sprintf(
-        "Negative dIF: higher isoform usage in %s; positive dIF: higher isoform usage in %s",
+        "Negative: %s; positive: %s",
         gsub("_", " ", comparison_pairs$condition_1[[1]]),
         gsub("_", " ", comparison_pairs$condition_2[[1]])
     )
 } else {
-    volcano_direction_label <- "Negative dIF: higher in condition 1; positive dIF: higher in condition 2"
+    volcano_direction_label <- "Negative: condition 1; positive: condition 2"
 }
 
-top_volcano_labels <- top_features[top_features$is_significant_switch, , drop = FALSE]
+top_volcano_labels <- features[features$is_significant_switch, , drop = FALSE]
 top_volcano_labels <- top_volcano_labels[order(top_volcano_labels$isoform_switch_q_value, -abs(top_volcano_labels$dIF)), , drop = FALSE]
-top_volcano_labels <- top_volcano_labels[!duplicated(top_volcano_labels$switch_key), , drop = FALSE]
 top_volcano_labels <- utils::head(top_volcano_labels, top_n)
 top_volcano_labels$label <- ifelse(!is.na(top_volcano_labels$gene_name) & nzchar(top_volcano_labels$gene_name), top_volcano_labels$gene_name, top_volcano_labels$gene_id)
 
 if (has_isoform_q_values) {
+    if (nrow(top_volcano_labels) > 0) {
+        y_max <- max(features$neg_log10_q[is.finite(features$neg_log10_q)], na.rm = TRUE)
+        label_gap <- max(1, y_max * 0.055)
+        label_padding <- y_max * 0.025
+        top_volcano_labels$label_y <- top_volcano_labels$neg_log10_q
+        label_sides <- split(seq_len(nrow(top_volcano_labels)), top_volcano_labels$dIF >= 0)
+        for (side_rows in label_sides) {
+            ordered_rows <- side_rows[order(top_volcano_labels$neg_log10_q[side_rows], decreasing = TRUE)]
+            positions <- pmin(
+                top_volcano_labels$neg_log10_q[ordered_rows] + label_padding,
+                y_max * 0.965
+            )
+            if (length(positions) > 1) {
+                for (i in 2:length(positions)) {
+                    positions[[i]] <- min(positions[[i]], positions[[i - 1]] - label_gap)
+                }
+            }
+            top_volcano_labels$label_y[ordered_rows] <- positions
+        }
+    }
+
     volcano <- ggplot(features, aes(x = dIF, y = neg_log10_q)) +
         geom_point(aes(color = is_significant_switch), alpha = 0.65, size = 1.5) +
         geom_vline(xintercept = c(-dif_cutoff, dif_cutoff), linetype = "dashed", color = "grey55", linewidth = 0.35) +
         geom_hline(yintercept = -log10(qvalue_cutoff), linetype = "dashed", color = "grey55", linewidth = 0.35) +
-        geom_text(data = top_volcano_labels, aes(label = label), check_overlap = TRUE, vjust = -0.7, size = 3, color = "grey20") +
+        geom_segment(
+            data = top_volcano_labels,
+            aes(x = dIF, y = neg_log10_q, xend = dIF, yend = label_y),
+            inherit.aes = FALSE,
+            color = "grey45",
+            linewidth = 0.3
+        ) +
+        geom_text(
+            data = top_volcano_labels,
+            aes(y = label_y, label = label),
+            check_overlap = FALSE,
+            vjust = -0.2,
+            size = 3,
+            color = "grey20"
+        ) +
         scale_color_manual(values = c("TRUE" = "#D55E00", "FALSE" = "grey65"), labels = c("TRUE" = cutoff_description, "FALSE" = "other"), name = "Switch candidate") +
         labs(
             title = "Isoform Switch Effect Size vs Statistical Support",
-            subtitle = paste(sprintf("Each point is one isoform; dashed lines show %s", cutoff_description), volcano_direction_label, sep = "\n"),
+            subtitle = paste(
+                sprintf(
+                    "Cutoffs: %s; labels: top %d isoforms by q-value",
+                    cutoff_description,
+                    min(top_n, nrow(top_volcano_labels))
+                ),
+                volcano_direction_label,
+                sep = "\n"
+            ),
             x = "dIF: change in isoform fraction (condition 2 - condition 1)",
             y = expression(-log[10]("q-value"))
         ) +
