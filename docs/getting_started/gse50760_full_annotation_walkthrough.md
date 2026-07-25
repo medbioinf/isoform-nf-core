@@ -312,7 +312,7 @@ fastqc/                         raw-read quality control
 fastp/                          read trimming/filtering reports
 salmon/                         transcript quantification
 isar/isar_analysis/             IsoformSwitchAnalyzeR objects and tables
-isar/isar_visualization/        general switch-analysis plots
+isar/isar_visualization/        one general switch-analysis folder per contrast
 isar/isar_contrast_summary/     multi-contrast summary plots and tables
 pfam/                           protein domain annotation and summaries
 iupred2a/                       intrinsically disordered region annotation
@@ -330,8 +330,9 @@ Key files to inspect first:
 isar/isar_contrast_summary/significant_isoform_switches_per_comparison.csv
 isar/isar_contrast_summary/significant_isoform_switches_per_comparison.png
 isar/isar_contrast_summary/isoform_switch_upset.png
-isar/isar_visualization/isoform_switch_volcano.png
-isar/isar_visualization/top_switching_genes.png
+isar/isar_visualization/comparison_visualizations.csv
+isar/isar_visualization/primary_crc_vs_normal_colon/isoform_switch_volcano.png
+isar/isar_visualization/primary_crc_vs_normal_colon/top_switching_genes.png
 annotated/annotated_switch_plots/annotation_status.csv
 annotated/annotated_switch_plots/annotated_switch_plot_summary.csv
 annotated/annotated_switch_plots/*_annotated_switch.png
@@ -349,6 +350,7 @@ OUT=results/20260705_gse50760_4v4v4_all_annotations
 
 test -s "$OUT/isar/isar_analysis/switchAnalyzeRlist_analyzed.rds"
 test -s "$OUT/isar/isar_contrast_summary/isoform_switch_upset.png"
+test -s "$OUT/isar/isar_visualization/primary_crc_vs_normal_colon/isoform_switch_volcano.png"
 test -s "$OUT/pfam/pfam_import/pfam_domain_summary.csv"
 test -s "$OUT/iupred2a/iupred2a_import/iupred2a_idr_summary.csv"
 test -s "$OUT/signalp/signalp_import/signalp_summary.csv"

@@ -10,6 +10,7 @@ process ANNOTATED_SWITCH_PLOTS {
     input:
     path plot_script
     path annotated_rds
+    path comparisons
 
     output:
     path "annotated_switch_plots", emit: results
@@ -35,14 +36,14 @@ process ANNOTATED_SWITCH_PLOTS {
         ${plotTopology} \\
         ${params.isar_qvalue_cutoff} \\
         ${params.isar_dif_cutoff} \\
+        ${comparisons} \\
         ${args}
     """
 
     stub:
     """
     mkdir -p annotated_switch_plots
-    touch annotated_switch_plots/annotation_status.csv
-    touch annotated_switch_plots/annotated_switch_plot_summary.csv
+    touch annotated_switch_plots/annotated_switch_plot_comparisons.csv
     touch annotated_switch_plots/annotated_switch_plot_notes.txt
     """
 }

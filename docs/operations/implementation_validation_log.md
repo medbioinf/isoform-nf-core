@@ -945,6 +945,25 @@ IUPred2A default-container reporting check on 2026-07-20:
 - The startup warning explained the reporting tradeoff. The result retained parameters, software versions, the pipeline DAG, process logs, MultiQC, and scientific stub outputs; it did not create an execution report, timeline, or trace.
 - A resumed stub workflow using the VM-local compatible image `docker.io/library/isoform-iupred2a:2a-procps` also completed. It created the execution report, timeline, trace, and DAG, confirming that `--iupred2a_container` automatically restores full runtime reporting.
 
+## Per-Comparison Visualization Validation (2026-07-23)
+
+The ISAR visualization and annotated-switch modules were changed so multi-contrast runs no longer share one combined volcano or one global top-N quota.
+
+Focused two-contrast check:
+
+- Ran both R entry points in the pinned IsoformSwitchAnalyzeR 2.6.0 container with a synthetic object containing `drug_A_vs_control` and `drug_B_vs_control`.
+- Both contrasts received separate visualization and annotated-plot directories.
+- Each visualization directory contained its own volcano, top-gene summary, candidate table, PTC summary, and isoform-usage outputs.
+- With `top_n = 2`, the first contrast selected `GeneA1` and `GeneA2`, while the second independently selected `GeneB1` and `GeneB2`.
+- `comparison_visualizations.csv` and `annotated_switch_plot_comparisons.csv` recorded both contrast names and successful completion.
+
+Pipeline checks:
+
+- A Docker stub workflow with `--run_annotated_switch_plots true` completed successfully and verified the new comparison-file wiring.
+- A real `test,docker` workflow completed successfully through Salmon, ISAR, contrast summary, per-comparison visualization, annotated switch plots, and MultiQC.
+- The real test published a valid `treated_vs_control/isoform_switch_volcano.png` and a genuine IsoformSwitchAnalyzeR `treated_vs_control/01_GENE1_annotated_switch.png`.
+- Explicit `--annotated_switch_condition1` and `--annotated_switch_condition2` parameters remain available to restrict annotated plotting to one comparison.
+
 ## Current Minimum Checks Before Future Commits
 
 For normal implementation changes:

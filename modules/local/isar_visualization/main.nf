@@ -34,7 +34,6 @@ process ISAR_VISUALIZATION {
     """
     mkdir -p isar_visualization
     touch isar_visualization/visualization_notes.txt
-    touch isar_visualization/top_isoform_candidates.csv
-    touch isar_visualization/top_gene_summary.csv
+    touch isar_visualization/comparison_visualizations.csv
     """
 }

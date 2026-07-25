@@ -475,7 +475,7 @@ Default:
 10
 ```
 
-Controls how many top genes are used for visualization outputs such as top switching genes and per-gene isoform usage plots.
+Controls how many top genes are used for visualization outputs such as top switching genes and per-gene isoform usage plots. In a multi-contrast run, the ranking and limit are applied independently to every comparison. Each comparison therefore receives its own volcano plot and up to this many top-gene outputs.
 
 ### `--run_isar_contrast_summary`
 
@@ -683,7 +683,7 @@ Default:
 10
 ```
 
-Controls how many top switching genes are plotted when `--annotated_switch_genes` is not provided.
+Controls how many significant switching genes are plotted for each comparison when `--annotated_switch_genes` is not provided. Ranking is performed independently within every comparison.
 
 ### `--annotated_switch_genes`
 
@@ -695,9 +695,9 @@ When optional annotation modules are enabled, these genes are also passed into a
 
 ### `--annotated_switch_condition1` and `--annotated_switch_condition2`
 
-Optional condition names for annotated switch plots.
+Optional condition names for restricting annotated switch plots to one comparison.
 
-If unset, the plotting script uses the comparison stored in the ISAR object. These options are useful when an ISAR object contains more than one comparison and the desired contrast should be explicit.
+If both are unset, the module creates a separate output directory for every comparison in the ISAR object. If both are set, only that condition pair is plotted. Supplying only one of the two parameters is invalid.
 
 ### `--annotated_switch_plot_topology`
 

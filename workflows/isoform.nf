@@ -384,9 +384,13 @@ workflow ISOFORM {
 
         if (paramEnabled(params.run_annotated_switch_plots)) {
             ch_annotated_switch_plot_script = channel.value(file("${projectDir}/bin/run_annotated_switch_plots.R", checkIfExists: true))
+            ch_isar_comparisons = ISAR_ANALYSIS.out.results.map { result_dir ->
+                file("${result_dir}/comparisons.csv", checkIfExists: true)
+            }
             ANNOTATED_SWITCH_PLOTS (
                 ch_annotated_switch_plot_script,
-                ch_current_annotated_isar
+                ch_current_annotated_isar,
+                ch_isar_comparisons
             )
             ch_annotated_switch_plot_results = ANNOTATED_SWITCH_PLOTS.out.results
         }

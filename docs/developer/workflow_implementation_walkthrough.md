@@ -633,14 +633,14 @@ Helper script:
 bin/run_annotated_switch_plots.R
 ```
 
-This module renders gene-level `switchPlot()` outputs from the newest available annotated ISAR object.
+This module renders gene-level `switchPlot()` outputs from the newest available annotated ISAR object. By default it discovers every tested comparison, ranks significant switching genes within each comparison, and writes one subdirectory per comparison. Explicit condition parameters restrict the module to one comparison.
 
 Important parameters:
 
 - `--run_annotated_switch_plots`: enables the module.
-- `--annotated_switch_top_n`: number of automatically selected genes.
+- `--annotated_switch_top_n`: number of automatically selected genes per comparison.
 - `--annotated_switch_genes`: comma-separated list of genes to plot.
-- `--annotated_switch_condition1` and `--annotated_switch_condition2`: optional comparison selection.
+- `--annotated_switch_condition1` and `--annotated_switch_condition2`: optional restriction to one comparison.
 - `--annotated_switch_plot_topology`: controls whether topology is shown when available.
 
 Available tracks depend on which upstream annotations were run and successfully imported.
