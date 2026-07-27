@@ -41,13 +41,13 @@ For long runs over SSH, use `tmux` or `screen` so the run continues after discon
 
 The Docker profile runs every tool in a container, but not every annotation module handles its container in the same way:
 
-| Module | What the user must provide |
-| --- | --- |
-| Pfam | The pipeline provides the scanning container. The user provides the Pfam database files downloaded in Section 3. |
-| IUPred2A | The pipeline provides a pinned default image. Because it lacks `ps`, the execution report, timeline, and trace are disabled; provide a compatible `--iupred2a_container` only if those runtime reports are needed. |
-| DeepTMHMM | Nothing beyond a working Docker installation. The pipeline pins its container to an immutable image digest. |
-| SignalP 5.0b | A private or local container containing software obtained under terms suitable for the user's institution. |
-| DeepLoc 2.1 | A private or local container containing software obtained under terms suitable for the user's institution. |
+| Module       | What the user must provide                                                                                                                                                                                         |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Pfam         | The pipeline provides the scanning container. The user provides the Pfam database files downloaded in Section 3.                                                                                                   |
+| IUPred2A     | The pipeline provides a pinned default image. Because it lacks `ps`, the execution report, timeline, and trace are disabled; provide a compatible `--iupred2a_container` only if those runtime reports are needed. |
+| DeepTMHMM    | Nothing beyond a working Docker installation. The pipeline pins its container to an immutable image digest.                                                                                                        |
+| SignalP 5.0b | A private or local container containing software obtained under terms suitable for the user's institution.                                                                                                         |
+| DeepLoc 2.1  | A private or local container containing software obtained under terms suitable for the user's institution.                                                                                                         |
 
 Docker downloads the pipeline-specified Pfam, IUPred2A, and DeepTMHMM images when they are first needed. Network access to the relevant registries is therefore required unless the images have already been cached. IUPred2A normally uses its default image; see [Prerequisites](prerequisites.md#optional-iupred2a-prerequisites) for the optional override that retains full Nextflow runtime reporting.
 

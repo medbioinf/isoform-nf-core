@@ -3,18 +3,14 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
-
-### `Changed`
-
-- Pinned the default IUPred2A image by digest and disabled Nextflow resource reports when that minimal image is selected; compatible custom images retain full reporting.
-
-## v1.0.0-beta.2 - 2026-07-15
+## v1.0.0-beta.2 - 2026-07-27
 
 Second beta release of Anton-Bch/isoform-nf-core, focused on scientific correctness, reproducibility, and release validation.
 
 ### `Added`
 
+- Compatible precomputed Salmon directories as a third input route alongside FASTQ samplesheets and SRA manifests.
+- Per-comparison visualizations and cross-comparison summaries for multi-contrast studies.
 - Deterministic paired-end and multi-lane FASTQ fixtures with regression coverage for paired-read ordering.
 - Multi-run SRA and per-isoform GO significance regression tests.
 - Requested and inferred Salmon library-type provenance in pipeline outputs.
@@ -25,6 +21,7 @@ Second beta release of Anton-Bch/isoform-nf-core, focused on scientific correctn
 - Salmon automatic library inference remains automatic instead of being converted to an unstranded assumption.
 - Optional annotation branches retain execution reports while tolerating containers without process-metric support.
 - SignalP 5.0b and DeepLoc 2.1 now require user-supplied licensed containers instead of redistributing unaffiliated public images.
+- Pinned the default IUPred2A image by digest and disabled Nextflow resource reports when that minimal image is selected; compatible custom images retain full reporting.
 
 ### `Fixed`
 
@@ -38,6 +35,8 @@ Second beta release of Anton-Bch/isoform-nf-core, focused on scientific correctn
 - Hardened the privileged template-version workflow so pull-request code is never checked out or executed.
 - Enabled release-mode nf-core linting for pull requests targeting `main` as well as `master`.
 - Authenticated and pinned the private-repository pipeline download release check.
+- Rendered the Pfam database-linking command on one shell line so the optional Pfam branch runs without a malformed `find` command.
+- Applied top-candidate volcano labels consistently across comparison plots.
 
 ### `Dependencies`
 

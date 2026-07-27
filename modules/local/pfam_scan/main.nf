@@ -47,11 +47,7 @@ process PFAM_SCAN {
         db_dir="\$PWD/pfam_db_indexed"
         mkdir -p "\$db_dir"
         cp "\$source_db_dir/Pfam-A.hmm" "\$db_dir/Pfam-A.hmm"
-        find "\$source_db_dir" -mindepth 1 -maxdepth 1 \\\
-            ! -name 'Pfam-A.hmm' ! -name 'Pfam-A.hmm.h3f' \\\
-            ! -name 'Pfam-A.hmm.h3i' ! -name 'Pfam-A.hmm.h3m' \\\
-            ! -name 'Pfam-A.hmm.h3p' \\\
-            -exec ln -s {} "\$db_dir/" \\;
+        find "\$source_db_dir" -mindepth 1 -maxdepth 1 ! -name 'Pfam-A.hmm' ! -name 'Pfam-A.hmm.h3f' ! -name 'Pfam-A.hmm.h3i' ! -name 'Pfam-A.hmm.h3m' ! -name 'Pfam-A.hmm.h3p' -exec ln -s {} "\$db_dir/" \\;
         echo "Indexing a task-local copy of Pfam-A.hmm with hmmpress" | tee pfam_scan.log
         hmmpress "\$db_dir/Pfam-A.hmm" 2>&1 | tee -a pfam_scan.log
     fi
