@@ -20,6 +20,7 @@ nextflow_pipeline {
 
         then {
             assertAll(
+                { assert snapshot(removeNextflowVersion("$outputDir/pipeline_info/isoform_software_mqc_versions.yml")).match() },
                 { assert workflow.success },
                 { assert !new File("$outputDir/fastqc").exists() },
                 { assert !new File("$outputDir/fastp").exists() },
