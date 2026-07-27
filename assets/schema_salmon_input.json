@@ -27,7 +27,6 @@
             },
             "quant_dir": {
                 "type": "string",
-                "format": "directory-path",
                 "pattern": "^\\S+$",
                 "errorMessage": "Salmon quantification directory must be provided and cannot contain spaces"
             },

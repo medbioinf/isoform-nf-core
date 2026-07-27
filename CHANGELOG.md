@@ -37,6 +37,8 @@ Second beta release of Anton-Bch/isoform-nf-core, focused on scientific correctn
 - Authenticated and pinned the private-repository pipeline download release check.
 - Rendered the Pfam database-linking command on one shell line so the optional Pfam branch runs without a malformed `find` command.
 - Applied top-candidate volcano labels consistently across comparison plots.
+- Kept the pinned IUPred2A reporting defaults compatible with the Nextflow 26 configuration parser.
+- Resolved relative precomputed Salmon directories after schema validation so manifests remain portable across launch directories.
 
 ### `Dependencies`
 
