@@ -1,6 +1,6 @@
 # Implementation Validation Log
 
-Last updated: 2026-06-21
+Last updated: 2026-07-20
 
 This document records what we tested while implementing the current reusable pipeline. It documents concrete validation runs, what each run was meant to prove, and what we learned.
 
@@ -396,14 +396,11 @@ Outcome:
 - The real-data subset import produced 34 IDR rows.
 - IsoformSwitchAnalyzeR reported IDR information added to 8 transcripts.
 
-Pending validation:
-
-- Full real-data workflow validation with `--run_iupred2a`.
-
 Runtime note:
 
 - The current third-party IUPred2A image lacks `ps`, which Nextflow needs for trace/timeline/report metrics.
-- Runs with `--run_iupred2a` currently disable those runtime reports until a more suitable pinned container is available.
+- The pipeline now accepts `--iupred2a_container` so sites can provide a compatible image without changing module code.
+- The NFkB real-data validation below used a VM-local derivative containing `procps`; a portable replacement image still needs to expose `python3`, `/opt/iupred2a/iupred2a.py`, and `ps`.
 
 ## SignalP Annotation Path
 
@@ -882,6 +879,90 @@ Operational note:
 
 - A broader GSE50760 `-resume` attempt was stopped because Nextflow began scheduling upstream SRA fetch tasks again. This was not needed to validate the GO runtime fix and would have wasted VM time.
 - The validation status after this change is: GO enrichment is real-data script/runtime validated and full Nextflow-wiring validated on the test dataset. A raw-SRA-to-GO full GSE50760 run after this refactor remains optional, expensive, and not required for the container dependency fix.
+
+## NFkB Mouse Study With Precomputed Salmon Input
+
+Date: 2026-07-17, corrected plot rerun on 2026-07-20
+
+Implementation areas:
+
+- new `--salmon_input` mode for existing Salmon quantification directories
+- four contrasts in one ISAR run
+- mouse GO enrichment
+- Pfam, IUPred2A, and DeepTMHMM annotation
+- annotated switch plots and MultiQC
+
+Dataset and setup:
+
+- Mouse macrophages from wild type and three NFkB-inhibitor knockout genotypes: Bcl3 (`B3KO`), IkBNS (`NSKO`), and IkBz (`ZKO`).
+- The complete study contained controls, 3-hour infection, and 24-hour infection samples. This validation used the 24 samples needed for four control-versus-3-hour comparisons, with three replicates per condition.
+- Existing `quant.sf` directories were supplied with `--salmon_input`; the read-QC, trimming, indexing, and quantification stages were intentionally skipped.
+- Matching Ensembl mouse release 114 transcript FASTA and GTF files were supplied.
+- SignalP and DeepLoc2 were not enabled because compatible licensed containers were not available for this run.
+
+VM run:
+
+```text
+Repository: /home/ubuntu/projects/isoform-nf-core-nfkb-validation
+Results: results/20260717_nfkb_3h_precomputed_salmon_annotations
+Work: work_20260717_nfkb_3h_precomputed_salmon_annotations
+```
+
+Outcome:
+
+- Pipeline completed successfully in 2 h 51 min: 9 processes succeeded and 7 were restored from cache.
+- ISAR evaluated all four requested contrasts and reported 3144 switches across 2529 genes in the combined summary.
+- GO enrichment evaluated 31,321 contrast-gene rows. Five biological-process terms passed FDR 0.05 for `B3KO_control_vs_B3KO_3h`; the other contrasts completed successfully with no terms passing the cutoff.
+- Pfam scanning and import completed, IUPred2A imported non-empty IDR annotations, and DeepTMHMM imported non-empty topology annotations.
+- Annotated switch plots reported ORF/PTC, Pfam, IUPred2A, and DeepTMHMM layers as available.
+- A curated 26 MB inspection package was copied locally to `results/20260717_nfkb_3h_precomputed_salmon_annotations_interpretable/`; large RDS objects and raw predictor outputs were intentionally omitted.
+
+Issues discovered and fixed:
+
+- `quant_dir` was initially treated as a possible statistical covariate. It is now explicitly classified as a technical input column.
+- Version suffixes on Ensembl transcript identifiers could prevent matching between Salmon and the annotation. ISAR import now uses `ignoreAfterPeriod = TRUE` in addition to `ignoreAfterBar = TRUE`.
+- WebGestalt identifier errors were difficult to diagnose. GO enrichment now validates the selected identifier type against the selected organism before submitting enrichment calls.
+- The default IUPred2A image lacks `ps`. The new `--iupred2a_container` parameter allowed validation with a compatible VM-local image containing `procps`.
+- The public default is now pinned by immutable digest. When it is selected, the pipeline disables the execution report, timeline, and trace while retaining scientific outputs, logs, the DAG, and MultiQC. A compatible custom container automatically restores full runtime reporting.
+- Five annotated switch plots were initially emitted as `NA` placeholders although their gene mappings were present. R logical filters had allowed unrelated rows containing missing values into each gene subset. Comparison and gene matching are now explicitly missing-value-safe, and automatic ranking excludes candidates without usable identifiers.
+
+Focused corrected-plot validation:
+
+- Resumed the completed workflow twice; all expensive annotation processes remained cached.
+- All ten annotated switch plots were generated with valid names and non-empty content.
+- The corrected set includes `Tmem164`, `Syk`, `Zfx`, `Nfkb2`, and `Sumf1` instead of five `NA_annotated_switch` placeholders.
+- Visual inspection confirmed transcript structures, expression/usage panels, Pfam or IUPred tracks where present, and DeepTMHMM topology tracks.
+
+Precomputed-input wiring check on 2026-07-20:
+
+- `nextflow config -profile test,docker` parsed successfully on the VM.
+- A Docker stub run using `tests/fixtures/salmon_input.csv` completed through ISAR visualization, contrast summary, and MultiQC.
+- The stub output correctly contained no `fastqc/`, `fastp/`, or `salmon/` directory, confirming that precomputed Salmon input bypasses read processing.
+
+IUPred2A default-container reporting check on 2026-07-20:
+
+- A Docker stub workflow with `--run_iupred2a` completed all 24 tasks using the pinned public default image.
+- The startup warning explained the reporting tradeoff. The result retained parameters, software versions, the pipeline DAG, process logs, MultiQC, and scientific stub outputs; it did not create an execution report, timeline, or trace.
+- A resumed stub workflow using the VM-local compatible image `docker.io/library/isoform-iupred2a:2a-procps` also completed. It created the execution report, timeline, trace, and DAG, confirming that `--iupred2a_container` automatically restores full runtime reporting.
+
+## Per-Comparison Visualization Validation (2026-07-23)
+
+The ISAR visualization and annotated-switch modules were changed so multi-contrast runs no longer share one combined volcano or one global top-N quota.
+
+Focused two-contrast check:
+
+- Ran both R entry points in the pinned IsoformSwitchAnalyzeR 2.6.0 container with a synthetic object containing `drug_A_vs_control` and `drug_B_vs_control`.
+- Both contrasts received separate visualization and annotated-plot directories.
+- Each visualization directory contained its own volcano, top-gene summary, candidate table, PTC summary, and isoform-usage outputs.
+- With `top_n = 2`, the first contrast selected `GeneA1` and `GeneA2`, while the second independently selected `GeneB1` and `GeneB2`.
+- `comparison_visualizations.csv` and `annotated_switch_plot_comparisons.csv` recorded both contrast names and successful completion.
+
+Pipeline checks:
+
+- A Docker stub workflow with `--run_annotated_switch_plots true` completed successfully and verified the new comparison-file wiring.
+- A real `test,docker` workflow completed successfully through Salmon, ISAR, contrast summary, per-comparison visualization, annotated switch plots, and MultiQC.
+- The real test published a valid `treated_vs_control/isoform_switch_volcano.png` and a genuine IsoformSwitchAnalyzeR `treated_vs_control/01_GENE1_annotated_switch.png`.
+- Explicit `--annotated_switch_condition1` and `--annotated_switch_condition2` parameters remain available to restrict annotated plotting to one comparison.
 
 ## Current Minimum Checks Before Future Commits
 

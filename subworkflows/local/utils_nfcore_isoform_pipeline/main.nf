@@ -34,6 +34,7 @@ workflow PIPELINE_INITIALISATION {
     outdir            //  string: The output directory where the results will be saved
     input             //  string: Path to input samplesheet
     sra_manifest      //  string: Path to SRA manifest
+    salmon_input      //  string: Path to precomputed Salmon input CSV
     help              // boolean: Display help message and exit
     help_full         // boolean: Show the full help message
     show_hidden       // boolean: Show hidden parameters in the help message
@@ -87,8 +88,9 @@ workflow PIPELINE_INITIALISATION {
 
     input_rows = params.input ? samplesheetToList(params.input, "${projectDir}/assets/schema_input.json") : []
     sra_rows = params.sra_manifest ? samplesheetToList(params.sra_manifest, "${projectDir}/assets/schema_sra_manifest.json") : []
+    salmon_rows = params.salmon_input ? samplesheetToList(params.salmon_input, "${projectDir}/assets/schema_salmon_input.json") : []
     contrast_rows = params.contrasts ? samplesheetToList(params.contrasts, "${projectDir}/assets/schema_contrasts.json") : []
-    validateContrasts(input_rows ?: sra_rows, contrast_rows)
+    validateContrasts(input_rows ?: sra_rows ?: salmon_rows, contrast_rows)
 
     channel
         .fromList(input_rows)
@@ -124,10 +126,19 @@ workflow PIPELINE_INITIALISATION {
         }
         .set { ch_sra_manifest }
 
+    channel
+        .fromList(salmon_rows)
+        .map {
+            meta, quant_dir ->
+                salmonRowToInput(meta, quant_dir)
+        }
+        .set { ch_salmon_input }
+
     emit:
     samplesheet   = ch_samplesheet
     sra_manifest  = ch_sra_manifest
-    metadata_file = channel.value(file(params.input ?: params.sra_manifest, checkIfExists: true))
+    salmon_input  = ch_salmon_input
+    metadata_file = channel.value(file(params.input ?: params.sra_manifest ?: params.salmon_input, checkIfExists: true))
     versions      = ch_versions
 }
 
@@ -193,11 +204,13 @@ def paramEnabled(value) {
 
 def validateInputParameters() {
     genomeExistsError()
-    if (params.input && params.sra_manifest) {
-        error("Please provide either --input or --sra_manifest, not both")
+    def default_iupred2a_container = 'docker.io/btrspg/iupred2a@sha256:a3a5048a131ce41a2ea39260acd9d63bfe6d65c0de606633b86ccc4e862f2c9d'
+    if (paramEnabled(params.run_iupred2a) && params.iupred2a_container == default_iupred2a_container) {
+        log.warn "The default IUPred2A container does not provide ps. Nextflow's execution report, timeline, and trace are disabled for this run; scientific outputs, process logs, the DAG, and MultiQC remain available. Supply --iupred2a_container with a compatible image containing ps to retain full runtime reports."
     }
-    if (!params.input && !params.sra_manifest) {
-        error("Please provide either --input FASTQ samplesheet or --sra_manifest")
+    def input_modes = [params.input, params.sra_manifest, params.salmon_input].count { it }
+    if (input_modes != 1) {
+        error("Please provide exactly one of --input, --sra_manifest, or --salmon_input")
     }
     if (!params.transcript_fasta) {
         error("Please provide --transcript_fasta for Salmon indexing and downstream isoform analysis")
@@ -249,6 +262,46 @@ def validateInputParameters() {
             error("--run_isar false is incompatible with enabled ISAR-dependent options. To run Salmon-only preprocessing, also set or remove: ${instructions}")
         }
     }
+}
+
+def salmonRowToInput(meta, quant_dir) {
+    if (!meta.id) {
+        error("Please check Salmon input -> Sample name must be provided")
+    }
+
+    def resolved_quant_dir = resolveSalmonQuantDir(quant_dir)
+    if (resolved_quant_dir.name != meta.id) {
+        error("Please check Salmon input -> quant_dir basename '${resolved_quant_dir.name}' must match sample '${meta.id}'")
+    }
+    if (!resolved_quant_dir.resolve('quant.sf').exists()) {
+        error("Please check Salmon input -> quant.sf does not exist in ${resolved_quant_dir}")
+    }
+
+    return [meta, resolved_quant_dir]
+}
+
+def resolveSalmonQuantDir(path_value) {
+    def value = path_value?.toString()
+    if (!value) {
+        error("Please check Salmon input -> quant_dir must be provided")
+    }
+
+    def candidates = [value]
+    if (!new File(value).isAbsolute()) {
+        candidates << "${projectDir}/${value}"
+        if (params.salmon_input) {
+            candidates << "${file(params.salmon_input).parent}/${value}"
+        }
+    }
+
+    def resolved_candidate = candidates.unique()
+        .collect { candidate -> file(candidate) }
+        .find { candidate_path -> candidate_path.exists() && candidate_path.isDirectory() }
+    if (resolved_candidate) {
+        return resolved_candidate
+    }
+
+    error("Please check Salmon input -> quantification directory does not exist: ${value}")
 }
 
 def sraRowToInput(meta, run_accession) {

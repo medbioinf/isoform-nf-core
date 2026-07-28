@@ -49,6 +49,7 @@ process ISAR_ANALYSIS {
     """
     mkdir -p isar_analysis
     touch isar_analysis/design_matrix.csv
+    touch isar_analysis/comparisons.csv
     touch isar_analysis/analysis_notes.txt
     touch isar_analysis/sessionInfo.txt
     """

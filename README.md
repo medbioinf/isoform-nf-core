@@ -14,7 +14,7 @@
 
 ## Introduction
 
-**Anton-Bch/isoform-nf-core** is a reference-based RNA-seq pipeline for isoform switch analysis. It accepts local FASTQ samplesheets or public SRA run manifests, performs read QC and preprocessing, quantifies transcript abundance with Salmon, and imports the results into IsoformSwitchAnalyzeR for differential isoform usage analysis.
+**Anton-Bch/isoform-nf-core** is a reference-based RNA-seq pipeline for isoform switch analysis. It accepts local FASTQ samplesheets, public SRA run manifests, or existing Salmon quantification directories. Starting from reads, it performs QC and preprocessing, quantifies transcript abundance with Salmon, and imports the results into IsoformSwitchAnalyzeR for differential isoform usage analysis. Existing Salmon results enter directly at the IsoformSwitchAnalyzeR stage.
 
 The current workflow runs:
 
@@ -48,6 +48,8 @@ TREATED_REP1,treated,1,AEG588A2_S2_L002_R1_001.fastq.gz,AEG588A2_S2_L002_R2_001.
 Each row represents a FastQ file (single-end) or a pair of FastQ files (paired-end), plus the sample metadata needed to run different datasets without changing the pipeline code.
 
 Alternatively, provide `--sra_manifest` with SRA run accessions and the same sample metadata columns. Minimal SRA mode downloads each run with `prefetch`, converts it with `fasterq-dump`, and then continues through the normal FASTQ path.
+
+If compatible Salmon `quant.sf` results already exist, provide `--salmon_input` with sample metadata and one quantification directory per sample. This mode skips FastQC, fastp, Salmon indexing, and Salmon quantification. See [Interface and input data model explained](docs/getting_started/interface_and_inputs_explained.md) for the three input formats and their requirements.
 
 Optionally, prepare a contrast file with pairwise condition comparisons:
 

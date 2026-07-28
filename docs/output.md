@@ -97,7 +97,7 @@ If the samplesheet contains multiple rows with the same `sample` value, the pipe
 
 </details>
 
-[Salmon](https://salmon.readthedocs.io/) estimates transcript abundance from the cleaned reads. These transcript-level estimates are the quantitative input for the isoform switch analysis.
+[Salmon](https://salmon.readthedocs.io/) estimates transcript abundance from the cleaned reads. These transcript-level estimates are the quantitative input for the isoform switch analysis. When `--salmon_input` is used, this entire pipeline stage is skipped and no new `salmon/` output is published; ISAR consumes the supplied quantification directories instead.
 
 ### IsoformSwitchAnalyzeR
 
@@ -127,19 +127,21 @@ If the samplesheet contains multiple rows with the same `sample` value, the pipe
 <summary>Output files</summary>
 
 - `isar/isar_visualization/`
-  - `top_switch_plots.pdf`: official IsoformSwitchAnalyzeR `switchPlot()` pages for the top ranked switching genes.
-  - `isoform_switch_volcano.png` / `.pdf`: isoform-level effect size versus statistical support.
-  - `top_switching_genes.png` / `.pdf`: top genes ranked by gene-level switch q-value.
-  - `top_gene_isoform_usage.pdf`: one combined PDF with per-gene isoform usage plots.
-  - `top_gene_isoform_usage/*.png` / `.pdf`: individual per-gene isoform usage plots.
-  - `ptc_switch_summary.png` / `.pdf` / `.csv`: PTC status summary for significant switch candidates, when candidates exist.
-  - `top_isoform_candidates.csv`: top isoform-level switch candidates with formatted effect-size and q-value columns.
-  - `top_gene_summary.csv`: top gene-level switch summary.
-  - `visualization_notes.txt`: run summary and explanation if plots were skipped.
+  - `comparison_visualizations.csv`: comparison names, condition pairs, output directories, and completion status.
+  - `visualization_notes.txt`: run-level summary and explanation if plots were skipped.
+  - `<comparison>/top_switch_plots.pdf`: official IsoformSwitchAnalyzeR `switchPlot()` pages for that comparison's top-ranked switching genes.
+  - `<comparison>/isoform_switch_volcano.png` / `.pdf`: isoform-level effect size versus statistical support for one comparison. Labels identify the top-N significant isoform points by q-value; repeated gene labels indicate that multiple isoforms from that gene are among the top points.
+  - `<comparison>/top_switching_genes.png` / `.pdf`: top genes ranked within that comparison by gene-level switch q-value.
+  - `<comparison>/top_gene_isoform_usage.pdf`: combined PDF with per-gene isoform usage plots for that comparison.
+  - `<comparison>/top_gene_isoform_usage/*.png` / `.pdf`: individual per-gene isoform usage plots.
+  - `<comparison>/ptc_switch_summary.png` / `.pdf` / `.csv`: PTC status summary for significant switch candidates.
+  - `<comparison>/top_isoform_candidates.csv`: top isoform-level candidates from that comparison.
+  - `<comparison>/top_gene_summary.csv`: top gene-level summary for that comparison.
+  - `<comparison>/visualization_notes.txt`: comparison-specific run summary.
 
 </details>
 
-The ISAR visualization step is controlled by `--run_isar_visualization` and `--isar_visualization_top_n`. It is intentionally lightweight and does not require external annotation databases. If the ISAR step only imported data, or if no genes pass the current switch cutoffs, the visualization step exits successfully and writes notes plus empty summary tables instead of failing the workflow.
+The ISAR visualization step is controlled by `--run_isar_visualization` and `--isar_visualization_top_n`. Every tested comparison receives a separate subdirectory, volcano plot, and independently ranked top-N set. It is intentionally lightweight and does not require external annotation databases. If the ISAR step only imported data, or if no tested comparisons are available, the visualization step exits successfully and writes explanatory notes instead of failing the workflow.
 
 ### ISAR contrast summary
 
@@ -291,11 +293,15 @@ The module uses the fast CPU model. Compared with the slower model this trades a
 Annotated switch plots are optional and controlled by `--run_annotated_switch_plots`. This step uses the newest available annotated IsoformSwitchAnalyzeR object from the optional annotation chain and renders `switchPlot()` pages for selected switching genes.
 
 - `annotated/annotated_switch_plots/`
-  - `*_annotated_switch.png` / `.pdf`: per-gene annotated switch plots.
-  - `annotated_switch_plot_genes.csv`: genes selected for plotting.
-  - `annotated_switch_plot_summary.csv`: plotted genes, strongest isoforms, q-values, dIF values, and output filenames.
-  - `annotation_status.csv`: which annotation layers were available for the plot run.
-  - `annotated_switch_plot_notes.txt`: run summary, selected comparison, and interpretation notes.
+  - `annotated_switch_plot_comparisons.csv`: comparison names, output directories, and completion status when all comparisons are plotted.
+  - `annotated_switch_plot_notes.txt`: run-level summary.
+  - `<comparison>/*_annotated_switch.png` / `.pdf`: per-gene annotated switch plots for one comparison.
+  - `<comparison>/annotated_switch_plot_genes.csv`: significant switching genes selected independently for that comparison.
+  - `<comparison>/annotated_switch_plot_summary.csv`: plotted genes, strongest isoforms, q-values, dIF values, and output filenames.
+  - `<comparison>/annotation_status.csv`: annotation layers available to that comparison's plots.
+  - `<comparison>/annotated_switch_plot_notes.txt`: comparison-specific summary and interpretation notes.
+
+By default, every tested comparison receives its own directory and its own top-N ranking. Setting both `--annotated_switch_condition1` and `--annotated_switch_condition2` restricts output to that comparison; in this explicit single-comparison mode, the files are written directly in `annotated_switch_plots/`.
 
 The available tracks depend on which optional annotation modules were run before this step. ORF/PTC information comes from the base ISAR object. Pfam, SignalP, IUPred2A, DeepTMHMM, and DeepLoc2 tracks appear only when their corresponding annotations have been imported.
 
@@ -323,7 +329,7 @@ Results generated by MultiQC collate pipeline QC from supported tools e.g. FastQ
 <summary>Output files</summary>
 
 - `pipeline_info/`
-  - Reports generated by Nextflow: `execution_report.html`, `execution_timeline.html`, `execution_trace.txt` and `pipeline_dag.dot`/`pipeline_dag.svg`.
+  - Reports generated by Nextflow: `execution_report.html`, `execution_timeline.html`, `execution_trace.txt` and `pipeline_dag.dot`/`pipeline_dag.svg`. The execution report, timeline, and trace are omitted when the default IUPred2A container is used because that image lacks the process-monitoring utility `ps`; the DAG remains available.
   - Reports generated by the pipeline: `pipeline_report.html`, `pipeline_report.txt` and `software_versions.yml`. The `pipeline_report*` files will only be present if the `--email` / `--email_on_fail` parameter's are used when running the pipeline.
   - Reformatted samplesheet files used as input to the pipeline: `samplesheet.valid.csv`.
   - Parameters used by the pipeline run: `params.json`.

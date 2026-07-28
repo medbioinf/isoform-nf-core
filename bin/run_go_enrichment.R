@@ -280,6 +280,22 @@ if (nrow(scores) == 0) {
     quit(save = "no", status = 0)
 }
 
+if (!requireNamespace("WebGestaltR", quietly = TRUE)) {
+    stop("The WebGestaltR package is not available in the active runtime", call. = FALSE)
+}
+supported_id_types <- WebGestaltR::listIdType(organism)
+if (!gene_id_type %in% supported_id_types) {
+    stop(
+        sprintf(
+            "Gene identifier type '%s' is not supported for organism '%s'. Supported types include: %s",
+            gene_id_type,
+            organism,
+            paste(supported_id_types, collapse = ", ")
+        ),
+        call. = FALSE
+    )
+}
+
 if (!is.null(reference_gene_file) && nzchar(as.character(reference_gene_file))) {
     global_reference <- sort(unique(clean_ids(readLines(reference_gene_file, warn = FALSE))))
     global_reference <- global_reference[!is.na(global_reference)]

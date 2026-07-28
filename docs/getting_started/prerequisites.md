@@ -1,6 +1,6 @@
 # Prerequisites to Run the Pipeline
 
-Last updated: 2026-06-21
+Last updated: 2026-07-20
 
 This document explains what a user needs before running the pipeline. It focuses on practical setup: software runtime, input data, reference files, optional Pfam annotation resources, and compute/storage expectations.
 
@@ -10,7 +10,7 @@ For the normal reproducible path, the user should bring:
 
 - Nextflow plus Java.
 - A container runtime such as Docker, Apptainer, or Singularity.
-- Either a FASTQ samplesheet or an SRA manifest.
+- Exactly one input description: a FASTQ samplesheet, an SRA manifest, or a precomputed Salmon input CSV.
 - A transcript FASTA.
 - A GTF annotation file.
 - Optionally, a genome FASTA for Salmon decoy-aware indexing.
@@ -86,7 +86,7 @@ Users who run a released pipeline through Nextflow usually do not interact with 
 
 ## Input Data Prerequisites
 
-The pipeline currently supports two input modes.
+The pipeline supports three mutually exclusive input modes.
 
 ### FASTQ Mode
 
@@ -125,6 +125,20 @@ Current limitation:
 
 - The pipeline expects run accessions.
 - It does not yet resolve higher-level accessions such as `GSE...`, `GSM...`, or `SRP...` automatically.
+
+### Precomputed Salmon Mode
+
+Use precomputed Salmon mode when every sample already has a compatible `quant.sf` result.
+
+Required parameter:
+
+```bash
+--salmon_input salmon_input.csv
+```
+
+The CSV supplies `sample`, `condition`, `replicate`, and `quant_dir`; `batch` is optional. Each quantification directory must be named after its sample and contain `quant.sf`.
+
+This route skips all read-level processing and Salmon quantification. The supplied transcript FASTA and GTF must match the reference used to build the original Salmon index. Keep the original read-QC and Salmon metadata available because this pipeline cannot recreate them from `quant.sf` alone.
 
 ## Reference File Prerequisites
 
@@ -256,9 +270,15 @@ IUPred2A annotation is optional and enabled with:
 
 It does not require a separate biological reference database. The pipeline extracts protein sequences from the ISAR object and runs IUPred2A/ANCHOR2 in a container.
 
-The main practical prerequisite is container availability. The current implementation uses the `btrspg/iupred2a:2a` container image. On a VM or HPC system, make sure the container can be pulled or has been pre-cached.
+The module uses the public IUPred2A image pinned to immutable digest `sha256:a3a5048a131ce41a2ea39260acd9d63bfe6d65c0de606633b86ccc4e862f2c9d`. This third-party image is minimal and does not include `ps`, which Nextflow uses to collect task resource metrics. For convenience, the pipeline automatically disables the Nextflow execution report, timeline, and trace when IUPred2A runs with this default image. Scientific outputs, process logs, the pipeline DAG, and MultiQC remain available.
 
-Current implementation note: this third-party image is minimal and does not include `ps`, which Nextflow uses for runtime metrics. Runs with `--run_iupred2a` currently disable Nextflow trace/timeline/report generation to avoid failing inside this container. Other pipeline information outputs, such as parameters and DAG files, can still be emitted. Before a polished public release, this should ideally be replaced by a pinned container image that already contains the runtime and Nextflow metric dependencies.
+To retain the full Nextflow runtime reports, supply a compatible replacement:
+
+```bash
+--iupred2a_container registry.example.org/iupred2a:2a-with-procps
+```
+
+The replacement must provide `python3`, `/opt/iupred2a/iupred2a.py`, and `ps`. Supplying it automatically re-enables the execution report, timeline, and trace. Prefer a versioned image or immutable digest. This is a container-runtime requirement, not an additional biological reference database.
 
 IUPred2A predicts intrinsically disordered regions. ANCHOR2 predicts disordered binding regions. These annotations help interpret whether an isoform switch may alter flexible protein regions or binding-related regions.
 

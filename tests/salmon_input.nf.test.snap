@@ -1,0 +1,25 @@
+{
+    "precomputed Salmon input bypasses read processing - stub": {
+        "content": [
+            {
+                "ISAR_ANALYSIS": {
+                    "bioconductor-isoformswitchanalyzer": "2.6.0"
+                },
+                "ISAR_CONTRAST_SUMMARY": {
+                    "r-ggplot2": "3.5.1"
+                },
+                "ISAR_VISUALIZATION": {
+                    "r-ggplot2": "3.5.1"
+                },
+                "Workflow": {
+                    "Anton-Bch/isoform-nf-core": "v1.0.0-beta.2"
+                }
+            }
+        ],
+        "timestamp": "2026-07-27T23:09:31.019823",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "25.04.0"
+        }
+    }
+}

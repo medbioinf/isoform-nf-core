@@ -34,6 +34,17 @@
                     "help_text": "Use this instead of `--input` to download public SRA runs before running the normal FASTQ-based pipeline. Required columns are `sample`, `condition`, `replicate`, `run_accession`, and `strandedness`; `batch` is optional.",
                     "fa_icon": "fas fa-cloud-download-alt"
                 },
+                "salmon_input": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "schema": "assets/schema_salmon_input.json",
+                    "mimetype": "text/csv",
+                    "pattern": "^\\S+\\.csv$",
+                    "description": "Optional CSV file describing precomputed Salmon quantification directories.",
+                    "help_text": "Use this instead of --input or --sra_manifest when quant.sf results already exist. Required columns are sample, condition, replicate, and quant_dir; batch is optional. Each quant_dir basename must match its sample name and contain quant.sf.",
+                    "fa_icon": "fas fa-folder-tree"
+                },
                 "sra_prefetch_max_size": {
                     "type": "string",
                     "default": "100G",
@@ -202,7 +213,7 @@
                     "type": "integer",
                     "minimum": 1,
                     "default": 10,
-                    "description": "Number of top switching genes used for ISAR visualization outputs."
+                    "description": "Number of top switching genes used independently for each comparison's ISAR visualization outputs."
                 },
                 "run_isar_contrast_summary": {
                     "type": ["boolean", "string"],
@@ -292,6 +303,12 @@
                     "description": "Run optional IUPred2A/ANCHOR2 disorder annotation on significant isoform switch candidates.",
                     "help_text": "When enabled, the pipeline extracts amino-acid sequences for significant switch candidates, runs IUPred2A with ANCHOR2, converts the output into the format expected by IsoformSwitchAnalyzeR, and imports IDR annotations with analyzeIUPred2A()."
                 },
+                "iupred2a_container": {
+                    "type": "string",
+                    "default": "docker.io/btrspg/iupred2a@sha256:a3a5048a131ce41a2ea39260acd9d63bfe6d65c0de606633b86ccc4e862f2c9d",
+                    "description": "Optional IUPred2A container image override.",
+                    "help_text": "The pinned default image provides IUPred2A but not ps, so the pipeline disables the Nextflow execution report, timeline, and trace when it is used. Override it with an image providing python3, /opt/iupred2a/iupred2a.py, and ps to retain full runtime reports."
+                },
                 "iupred2a_top_n": {
                     "type": "integer",
                     "minimum": 1,
@@ -358,7 +375,7 @@
                     "type": "integer",
                     "minimum": 1,
                     "default": 10,
-                    "description": "Number of top genes to plot in the annotated switch plot module when --annotated_switch_genes is not supplied."
+                    "description": "Number of significant switching genes to plot independently per comparison when --annotated_switch_genes is not supplied."
                 },
                 "annotated_switch_genes": {
                     "type": "string",
@@ -367,11 +384,11 @@
                 },
                 "annotated_switch_condition1": {
                     "type": "string",
-                    "description": "Optional first condition name for annotated switch plots. Defaults to the first comparison in the ISAR object."
+                    "description": "Optional first condition name used with --annotated_switch_condition2 to restrict annotated switch plots to one comparison."
                 },
                 "annotated_switch_condition2": {
                     "type": "string",
-                    "description": "Optional second condition name for annotated switch plots. Defaults to the first comparison in the ISAR object."
+                    "description": "Optional second condition name used with --annotated_switch_condition1 to restrict annotated switch plots to one comparison."
                 },
                 "annotated_switch_plot_topology": {
                     "type": ["boolean", "string"],

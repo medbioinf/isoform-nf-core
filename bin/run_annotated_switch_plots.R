@@ -8,7 +8,7 @@ args <- commandArgs(trailingOnly = TRUE)
 usage <- paste(
     "Usage:",
     "Rscript run_annotated_switch_plots.R",
-    "<switchAnalyzeRlist_rds_or_dir> <outdir> [n_top] [genes_csv] [condition1] [condition2] [plot_topology] [qvalue_cutoff] [dif_cutoff]",
+    "<switchAnalyzeRlist_rds_or_dir> <outdir> [n_top] [genes_csv] [condition1] [condition2] [plot_topology] [qvalue_cutoff] [dif_cutoff] [comparisons_csv]",
     "",
     "genes_csv is optional and can be a comma-separated list such as ZNRF3,PBX3.",
     "If genes_csv is '-', the script selects the top n_top genes by gene_switch_q_value.",
@@ -16,7 +16,7 @@ usage <- paste(
     sep = "\n"
 )
 
-if (length(args) < 2 || length(args) > 9) {
+if (length(args) < 2 || length(args) > 10) {
     stop(usage, call. = FALSE)
 }
 
@@ -59,6 +59,11 @@ plot_topology <- if (length(args) >= 7) {
 }
 qvalue_cutoff <- if (length(args) >= 8) as.numeric(args[[8]]) else 0.05
 dif_cutoff <- if (length(args) >= 9) as.numeric(args[[9]]) else 0.1
+comparisons_file <- if (length(args) >= 10 && nzchar(args[[10]])) {
+    normalizePath(args[[10]], mustWork = TRUE)
+} else {
+    ""
+}
 
 if (is.na(n_top) || n_top < 1) {
     stop("n_top must be a positive integer.", call. = FALSE)
@@ -76,6 +81,95 @@ safe_filename <- function(x) {
     x <- gsub("[^A-Za-z0-9._-]+", "_", x)
     x[x == ""] <- "unknown"
     x
+}
+
+script_path <- function() {
+    file_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
+    if (length(file_arg) != 1) {
+        stop("Could not determine the annotated switch plot script path.", call. = FALSE)
+    }
+    normalizePath(sub("^--file=", "", file_arg[[1]]), mustWork = TRUE)
+}
+
+dispatch_comparisons <- function(features, outdir, comparisons_file) {
+    comparisons <- unique(features[, c("condition_1", "condition_2"), drop = FALSE])
+    comparisons <- comparisons[
+        stats::complete.cases(comparisons) &
+            nzchar(comparisons$condition_1) &
+            nzchar(comparisons$condition_2),
+        ,
+        drop = FALSE
+    ]
+    comparisons$comparison <- sprintf("%s_vs_%s", comparisons$condition_2, comparisons$condition_1)
+
+    if (nzchar(comparisons_file) && file.exists(comparisons_file)) {
+        labels <- read.csv(comparisons_file, stringsAsFactors = FALSE, check.names = FALSE)
+        required <- c("contrast", "condition_1", "condition_2")
+        if (all(required %in% colnames(labels))) {
+            for (i in seq_len(nrow(comparisons))) {
+                match_row <- labels[
+                    labels$condition_1 == comparisons$condition_1[[i]] &
+                        labels$condition_2 == comparisons$condition_2[[i]],
+                    ,
+                    drop = FALSE
+                ]
+                if (nrow(match_row) > 0 && nzchar(match_row$contrast[[1]])) {
+                    comparisons$comparison[[i]] <- match_row$contrast[[1]]
+                }
+            }
+        }
+    }
+    comparisons$output_directory <- make.unique(safe_filename(comparisons$comparison), sep = "_")
+
+    if (nrow(comparisons) == 0) {
+        stop("No tested comparisons were found in the annotated ISAR object.", call. = FALSE)
+    }
+
+    statuses <- integer(nrow(comparisons))
+    rscript <- file.path(R.home("bin"), "Rscript")
+    own_script <- script_path()
+    for (i in seq_len(nrow(comparisons))) {
+        comparison_outdir <- file.path(outdir, comparisons$output_directory[[i]])
+        child_args <- c(
+            own_script,
+            rds_path,
+            comparison_outdir,
+            as.character(n_top),
+            genes_arg,
+            comparisons$condition_1[[i]],
+            comparisons$condition_2[[i]],
+            ifelse(plot_topology, "true", "false"),
+            as.character(qvalue_cutoff),
+            as.character(dif_cutoff),
+            comparisons_file
+        )
+        statuses[[i]] <- system2(rscript, args = shQuote(child_args))
+    }
+
+    comparisons$status <- ifelse(statuses == 0, "complete", "failed")
+    utils::write.csv(
+        comparisons,
+        file.path(outdir, "annotated_switch_plot_comparisons.csv"),
+        row.names = FALSE
+    )
+    writeLines(
+        c(
+            "Annotated switch plots by comparison",
+            sprintf("Comparisons discovered: %d", nrow(comparisons)),
+            sprintf("Comparisons completed: %d", sum(statuses == 0)),
+            sprintf("Top genes requested per comparison: %d", n_top),
+            if (genes_arg == "-") {
+                "Genes were ranked independently within each comparison."
+            } else {
+                sprintf("Explicit genes requested for every comparison: %s", genes_arg)
+            }
+        ),
+        file.path(outdir, "annotated_switch_plot_notes.txt")
+    )
+
+    if (any(statuses != 0)) {
+        stop("One or more per-comparison annotated switch plot runs failed. See annotated_switch_plot_comparisons.csv.", call. = FALSE)
+    }
 }
 
 format_q <- function(q) {
@@ -107,14 +201,23 @@ features$isoform_switch_q_value <- suppressWarnings(as.numeric(features$isoform_
 features$dIF <- suppressWarnings(as.numeric(features$dIF))
 features$abs_dIF <- abs(features$dIF)
 
+has_condition1 <- !is.na(condition1_arg) && nzchar(condition1_arg)
+has_condition2 <- !is.na(condition2_arg) && nzchar(condition2_arg)
+if (xor(has_condition1, has_condition2)) {
+    stop("condition1 and condition2 must be supplied together.", call. = FALSE)
+}
+if (!has_condition1) {
+    dispatch_comparisons(features, outdir, comparisons_file)
+    quit(save = "no", status = 0)
+}
+
 condition1 <- if (!is.na(condition1_arg) && nzchar(condition1_arg)) condition1_arg else features$condition_1[[1]]
 condition2 <- if (!is.na(condition2_arg) && nzchar(condition2_arg)) condition2_arg else features$condition_2[[1]]
 
-comparison_features <- features[
-    features$condition_1 == condition1 & features$condition_2 == condition2,
-    ,
-    drop = FALSE
-]
+matches_comparison <-
+    !is.na(features$condition_1) & features$condition_1 == condition1 &
+    !is.na(features$condition_2) & features$condition_2 == condition2
+comparison_features <- features[matches_comparison, , drop = FALSE]
 if (nrow(comparison_features) == 0) {
     stop(sprintf("No isoforms found for comparison %s vs %s.", condition1, condition2), call. = FALSE)
 }
@@ -123,9 +226,27 @@ if (!is.na(genes_arg) && nzchar(genes_arg) && genes_arg != "-") {
     genes_to_plot <- trimws(strsplit(genes_arg, ",", fixed = TRUE)[[1]])
     genes_to_plot <- genes_to_plot[nzchar(genes_to_plot)]
 } else {
-    gene_summary <- unique(comparison_features[, c("gene_id", "gene_name", "gene_switch_q_value"), drop = FALSE])
+    significant_features <- comparison_features[
+        !is.na(comparison_features$isoform_switch_q_value) &
+            comparison_features$isoform_switch_q_value <= qvalue_cutoff &
+            !is.na(comparison_features$abs_dIF) &
+            comparison_features$abs_dIF >= dif_cutoff,
+        ,
+        drop = FALSE
+    ]
+    gene_summary <- unique(significant_features[, c("gene_id", "gene_name", "gene_switch_q_value"), drop = FALSE])
+    has_gene_identifier <-
+        (!is.na(gene_summary$gene_id) & nzchar(gene_summary$gene_id)) |
+        (!is.na(gene_summary$gene_name) & nzchar(gene_summary$gene_name))
+    gene_summary <- gene_summary[has_gene_identifier & !is.na(gene_summary$gene_switch_q_value), , drop = FALSE]
     gene_summary <- gene_summary[order(gene_summary$gene_switch_q_value), , drop = FALSE]
-    genes_to_plot <- head(gene_summary$gene_id, n_top)
+    gene_summary$plot_identifier <- ifelse(
+        !is.na(gene_summary$gene_id) & nzchar(gene_summary$gene_id),
+        gene_summary$gene_id,
+        gene_summary$gene_name
+    )
+    gene_summary <- gene_summary[!duplicated(gene_summary$plot_identifier), , drop = FALSE]
+    genes_to_plot <- head(gene_summary$plot_identifier, n_top)
 }
 
 gene_summary <- unique(comparison_features[, c("gene_id", "gene_name", "gene_switch_q_value"), drop = FALSE])
@@ -158,18 +279,19 @@ utils::write.csv(annotation_status, file.path(outdir, "annotation_status.csv"), 
 plot_records <- list()
 for (i in seq_along(genes_to_plot)) {
     gene <- genes_to_plot[[i]]
-    gene_rows <- comparison_features[
-        comparison_features$gene_id == gene | comparison_features$gene_name == gene,
-        ,
-        drop = FALSE
-    ]
+    matches_gene <-
+        (!is.na(comparison_features$gene_id) & comparison_features$gene_id == gene) |
+        (!is.na(comparison_features$gene_name) & comparison_features$gene_name == gene)
+    gene_rows <- comparison_features[matches_gene, , drop = FALSE]
     if (nrow(gene_rows) == 0) {
         warning("Skipping gene not found in comparison: ", gene)
         next
     }
 
-    gene_id <- gene_rows$gene_id[[1]]
-    gene_name <- gene_rows$gene_name[[1]]
+    gene_id_candidates <- gene_rows$gene_id[!is.na(gene_rows$gene_id) & nzchar(gene_rows$gene_id)]
+    gene_name_candidates <- gene_rows$gene_name[!is.na(gene_rows$gene_name) & nzchar(gene_rows$gene_name)]
+    gene_id <- if (length(gene_id_candidates) > 0) gene_id_candidates[[1]] else gene
+    gene_name <- if (length(gene_name_candidates) > 0) gene_name_candidates[[1]] else NA_character_
     label <- if (!is.na(gene_name) && nzchar(gene_name)) gene_name else gene_id
     file_prefix <- sprintf("%02d_%s_annotated_switch", i, safe_filename(label))
     pdf_path <- file.path(outdir, paste0(file_prefix, ".pdf"))

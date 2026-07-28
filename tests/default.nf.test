@@ -27,7 +27,8 @@ nextflow_pipeline {
                 { assert new File("$outputDir/isar/isar_analysis/design_matrix.csv").readLines().first().contains('batch') },
                 { assert new File("$outputDir/isar/isar_analysis/go_gene_scores.csv").text.contains('GENE1') },
                 { assert new File("$outputDir/isar/isar_contrast_summary/significant_isoform_switches_per_comparison.csv").exists() },
-                { assert new File("$outputDir/isar/isar_visualization/top_isoform_candidates.csv").exists() },
+                { assert new File("$outputDir/isar/isar_visualization/comparison_visualizations.csv").exists() },
+                { assert new File("$outputDir/isar/isar_visualization/treated_vs_control/top_isoform_candidates.csv").exists() },
                 { assert new File("$outputDir/multiqc/multiqc_report.html").exists() },
                 { assert new File("$outputDir/pipeline_info/isoform_software_mqc_versions.yml").exists() }
             )

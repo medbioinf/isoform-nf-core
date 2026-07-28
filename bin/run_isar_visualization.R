@@ -13,11 +13,19 @@ usage <- paste(
     "[--top-n 10]",
     "[--qvalue-cutoff 0.05]",
     "[--dif-cutoff 0.1]",
+    "[--condition-1 control --condition-2 case --comparison-label case_vs_control]",
     sep = "\n"
 )
 
 parse_args <- function(args) {
-    opts <- list(top_n = "10", qvalue_cutoff = "0.05", dif_cutoff = "0.1")
+    opts <- list(
+        top_n = "10",
+        qvalue_cutoff = "0.05",
+        dif_cutoff = "0.1",
+        condition_1 = "",
+        condition_2 = "",
+        comparison_label = ""
+    )
     i <- 1
     while (i <= length(args)) {
         key <- args[[i]]
@@ -76,7 +84,11 @@ format_if_pct <- function(value) {
 
 short_isoform_id <- function(ids) sub("\\.[0-9]+$", "", as.character(ids))
 
-sanitize_filename <- function(value) gsub("[^A-Za-z0-9_.-]+", "_", as.character(value))
+sanitize_filename <- function(value) {
+    result <- gsub("[^A-Za-z0-9_.-]+", "_", as.character(value))
+    result[result == ""] <- "comparison"
+    result
+}
 
 make_switch_key <- function(gene_id, condition_1, condition_2) {
     paste(as.character(gene_id), as.character(condition_1), as.character(condition_2), sep = "||")
@@ -84,6 +96,80 @@ make_switch_key <- function(gene_id, condition_1, condition_2) {
 
 make_comparison_label <- function(condition_1, condition_2) {
     sprintf("%s vs %s", as.character(condition_2), as.character(condition_1))
+}
+
+script_path <- function() {
+    file_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
+    if (length(file_arg) != 1) {
+        stop("Could not determine the visualization script path.", call. = FALSE)
+    }
+    normalizePath(sub("^--file=", "", file_arg[[1]]), mustWork = TRUE)
+}
+
+comparison_table <- function(features, isar_dir) {
+    pairs <- unique(features[, c("condition_1", "condition_2"), drop = FALSE])
+    pairs <- pairs[stats::complete.cases(pairs) & nzchar(pairs$condition_1) & nzchar(pairs$condition_2), , drop = FALSE]
+    pairs$comparison <- sprintf("%s_vs_%s", pairs$condition_2, pairs$condition_1)
+
+    comparison_file <- file.path(isar_dir, "comparisons.csv")
+    if (file.exists(comparison_file)) {
+        labels <- read.csv(comparison_file, stringsAsFactors = FALSE, check.names = FALSE)
+        required <- c("contrast", "condition_1", "condition_2")
+        if (all(required %in% colnames(labels))) {
+            for (i in seq_len(nrow(pairs))) {
+                match_row <- labels[
+                    labels$condition_1 == pairs$condition_1[[i]] &
+                        labels$condition_2 == pairs$condition_2[[i]],
+                    ,
+                    drop = FALSE
+                ]
+                if (nrow(match_row) > 0 && nzchar(match_row$contrast[[1]])) {
+                    pairs$comparison[[i]] <- match_row$contrast[[1]]
+                }
+            }
+        }
+    }
+
+    pairs$output_directory <- make.unique(sanitize_filename(pairs$comparison), sep = "_")
+    pairs
+}
+
+dispatch_comparisons <- function(comparisons, opts, isar_dir, outdir) {
+    statuses <- integer(nrow(comparisons))
+    rscript <- file.path(R.home("bin"), "Rscript")
+    own_script <- script_path()
+
+    for (i in seq_len(nrow(comparisons))) {
+        comparison_outdir <- file.path(outdir, comparisons$output_directory[[i]])
+        child_args <- c(
+            own_script,
+            "--isar-dir", isar_dir,
+            "--outdir", comparison_outdir,
+            "--top-n", opts$top_n,
+            "--qvalue-cutoff", opts$qvalue_cutoff,
+            "--dif-cutoff", opts$dif_cutoff,
+            "--condition-1", comparisons$condition_1[[i]],
+            "--condition-2", comparisons$condition_2[[i]],
+            "--comparison-label", comparisons$comparison[[i]]
+        )
+        statuses[[i]] <- system2(rscript, args = shQuote(child_args))
+    }
+
+    comparisons$status <- ifelse(statuses == 0, "complete", "failed")
+    write.csv(comparisons, file.path(outdir, "comparison_visualizations.csv"), row.names = FALSE)
+    writeLines(
+        c(
+            "ISAR per-comparison visualization summary",
+            sprintf("Comparisons discovered: %d", nrow(comparisons)),
+            sprintf("Comparisons completed: %d", sum(statuses == 0)),
+            "Each comparison directory contains an independently ranked top-N set and its own volcano plot."
+        ),
+        file.path(outdir, "visualization_notes.txt")
+    )
+
+    if (any(statuses != 0)) {
+        stop("One or more per-comparison visualizations failed. See comparison_visualizations.csv.", call. = FALSE)
+    }
 }
 
 write_no_switch_outputs <- function(outdir, notes) {
@@ -123,6 +209,11 @@ if (is.na(qvalue_cutoff) || qvalue_cutoff <= 0 || qvalue_cutoff >= 1) {
 }
 if (is.na(dif_cutoff) || dif_cutoff < 0 || dif_cutoff > 1) {
     stop("--dif-cutoff must be between 0 and 1 inclusive", call. = FALSE)
+}
+has_condition_1 <- nzchar(opts$condition_1)
+has_condition_2 <- nzchar(opts$condition_2)
+if (xor(has_condition_1, has_condition_2)) {
+    stop("--condition-1 and --condition-2 must be supplied together.", call. = FALSE)
 }
 cutoff_description <- sprintf("q <= %s and |dIF| >= %s", format(qvalue_cutoff), format(dif_cutoff))
 
@@ -169,6 +260,41 @@ if (length(missing_feature_cols) > 0) {
     quit(save = "no", status = 0)
 }
 
+if (!has_condition_1) {
+    comparisons <- comparison_table(features, isar_dir)
+    if (nrow(comparisons) == 0) {
+        write_no_switch_outputs(
+            outdir,
+            c(notes, sprintf("RDS file: %s", basename(rds_path)), "No tested comparisons were found. No plots were generated.")
+        )
+        quit(save = "no", status = 0)
+    }
+    dispatch_comparisons(comparisons, opts, isar_dir, outdir)
+    quit(save = "no", status = 0)
+}
+
+features <- features[
+    !is.na(features$condition_1) & features$condition_1 == opts$condition_1 &
+        !is.na(features$condition_2) & features$condition_2 == opts$condition_2,
+    ,
+    drop = FALSE
+]
+if (nrow(features) == 0) {
+    stop(
+        sprintf("No isoforms found for comparison %s vs %s.", opts$condition_2, opts$condition_1),
+        call. = FALSE
+    )
+}
+notes <- c(
+    notes,
+    sprintf(
+        "Comparison: %s (%s vs %s)",
+        ifelse(nzchar(opts$comparison_label), opts$comparison_label, sprintf("%s_vs_%s", opts$condition_2, opts$condition_1)),
+        opts$condition_2,
+        opts$condition_1
+    )
+)
+
 features$dIF <- safe_num(features$dIF)
 features$IF1 <- safe_num(features$IF1)
 features$IF2 <- safe_num(features$IF2)
@@ -193,20 +319,15 @@ if (!"PTC" %in% colnames(features)) {
     features$PTC <- NA
 }
 
-top_switches_path <- file.path(isar_dir, "top_switches.csv")
-if (file.exists(top_switches_path)) {
-    top_switches <- read.csv(top_switches_path, stringsAsFactors = FALSE, check.names = FALSE)
+top_switches <- unique(features[, c("gene_id", "gene_name", "condition_1", "condition_2", "gene_switch_q_value")])
+if (has_gene_q_values) {
+    top_switches <- top_switches[order(top_switches$gene_switch_q_value), , drop = FALSE]
 } else {
-    top_switches <- unique(features[, c("gene_id", "gene_name", "condition_1", "condition_2", "gene_switch_q_value")])
-    if (has_gene_q_values) {
-        top_switches <- top_switches[order(top_switches$gene_switch_q_value), , drop = FALSE]
-    } else {
-        gene_rank <- aggregate(list(max_abs_dIF = abs(features$dIF)), by = features[, c("gene_id", "gene_name", "condition_1", "condition_2"), drop = FALSE], FUN = function(x) if (all(is.na(x))) NA_real_ else max(x, na.rm = TRUE))
-        top_switches <- merge(top_switches, gene_rank, by = c("gene_id", "gene_name", "condition_1", "condition_2"), all.x = TRUE)
-        top_switches <- top_switches[order(-top_switches$max_abs_dIF), , drop = FALSE]
-    }
-    top_switches$Rank <- seq_len(nrow(top_switches))
+    gene_rank <- aggregate(list(max_abs_dIF = abs(features$dIF)), by = features[, c("gene_id", "gene_name", "condition_1", "condition_2"), drop = FALSE], FUN = function(x) if (all(is.na(x))) NA_real_ else max(x, na.rm = TRUE))
+    top_switches <- merge(top_switches, gene_rank, by = c("gene_id", "gene_name", "condition_1", "condition_2"), all.x = TRUE)
+    top_switches <- top_switches[order(-top_switches$max_abs_dIF), , drop = FALSE]
 }
+top_switches$Rank <- seq_len(nrow(top_switches))
 
 if (!"Rank" %in% colnames(top_switches)) {
     top_switches$Rank <- seq_len(nrow(top_switches))
@@ -337,30 +458,72 @@ comparison_pairs <- unique(features[, c("condition_1", "condition_2"), drop = FA
 comparison_pairs <- comparison_pairs[stats::complete.cases(comparison_pairs), , drop = FALSE]
 if (nrow(comparison_pairs) > 0) {
     volcano_direction_label <- sprintf(
-        "Negative dIF: higher isoform usage in %s; positive dIF: higher isoform usage in %s",
+        "Negative: %s; positive: %s",
         gsub("_", " ", comparison_pairs$condition_1[[1]]),
         gsub("_", " ", comparison_pairs$condition_2[[1]])
     )
 } else {
-    volcano_direction_label <- "Negative dIF: higher in condition 1; positive dIF: higher in condition 2"
+    volcano_direction_label <- "Negative: condition 1; positive: condition 2"
 }
 
-top_volcano_labels <- top_features[top_features$is_significant_switch, , drop = FALSE]
+top_volcano_labels <- features[features$is_significant_switch, , drop = FALSE]
 top_volcano_labels <- top_volcano_labels[order(top_volcano_labels$isoform_switch_q_value, -abs(top_volcano_labels$dIF)), , drop = FALSE]
-top_volcano_labels <- top_volcano_labels[!duplicated(top_volcano_labels$switch_key), , drop = FALSE]
 top_volcano_labels <- utils::head(top_volcano_labels, top_n)
 top_volcano_labels$label <- ifelse(!is.na(top_volcano_labels$gene_name) & nzchar(top_volcano_labels$gene_name), top_volcano_labels$gene_name, top_volcano_labels$gene_id)
 
 if (has_isoform_q_values) {
+    if (nrow(top_volcano_labels) > 0) {
+        y_max <- max(features$neg_log10_q[is.finite(features$neg_log10_q)], na.rm = TRUE)
+        label_gap <- max(1, y_max * 0.055)
+        label_padding <- y_max * 0.025
+        top_volcano_labels$label_y <- top_volcano_labels$neg_log10_q
+        label_sides <- split(seq_len(nrow(top_volcano_labels)), top_volcano_labels$dIF >= 0)
+        for (side_rows in label_sides) {
+            ordered_rows <- side_rows[order(top_volcano_labels$neg_log10_q[side_rows], decreasing = TRUE)]
+            positions <- pmin(
+                top_volcano_labels$neg_log10_q[ordered_rows] + label_padding,
+                y_max * 0.965
+            )
+            if (length(positions) > 1) {
+                for (i in 2:length(positions)) {
+                    positions[[i]] <- min(positions[[i]], positions[[i - 1]] - label_gap)
+                }
+            }
+            top_volcano_labels$label_y[ordered_rows] <- positions
+        }
+    }
+
     volcano <- ggplot(features, aes(x = dIF, y = neg_log10_q)) +
         geom_point(aes(color = is_significant_switch), alpha = 0.65, size = 1.5) +
         geom_vline(xintercept = c(-dif_cutoff, dif_cutoff), linetype = "dashed", color = "grey55", linewidth = 0.35) +
         geom_hline(yintercept = -log10(qvalue_cutoff), linetype = "dashed", color = "grey55", linewidth = 0.35) +
-        geom_text(data = top_volcano_labels, aes(label = label), check_overlap = TRUE, vjust = -0.7, size = 3, color = "grey20") +
+        geom_segment(
+            data = top_volcano_labels,
+            aes(x = dIF, y = neg_log10_q, xend = dIF, yend = label_y),
+            inherit.aes = FALSE,
+            color = "grey45",
+            linewidth = 0.3
+        ) +
+        geom_text(
+            data = top_volcano_labels,
+            aes(y = label_y, label = label),
+            check_overlap = FALSE,
+            vjust = -0.2,
+            size = 3,
+            color = "grey20"
+        ) +
         scale_color_manual(values = c("TRUE" = "#D55E00", "FALSE" = "grey65"), labels = c("TRUE" = cutoff_description, "FALSE" = "other"), name = "Switch candidate") +
         labs(
             title = "Isoform Switch Effect Size vs Statistical Support",
-            subtitle = paste(sprintf("Each point is one isoform; dashed lines show %s", cutoff_description), volcano_direction_label, sep = "\n"),
+            subtitle = paste(
+                sprintf(
+                    "Cutoffs: %s; labels: top %d isoforms by q-value",
+                    cutoff_description,
+                    min(top_n, nrow(top_volcano_labels))
+                ),
+                volcano_direction_label,
+                sep = "\n"
+            ),
             x = "dIF: change in isoform fraction (condition 2 - condition 1)",
             y = expression(-log[10]("q-value"))
         ) +
